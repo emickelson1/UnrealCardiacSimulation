@@ -76,8 +76,8 @@ simulation/DerivedDataCache/*
 # Blender backup files
 *.blend1
 
-# Assets outside of project directory
-assets/*
+# Temporary assets
+assets/temp/*
 
 # VSCode and related files
 simulation/.vscode/*
