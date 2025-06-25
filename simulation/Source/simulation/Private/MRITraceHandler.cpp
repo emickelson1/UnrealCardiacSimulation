@@ -68,7 +68,7 @@ void UMRITraceHandler::MRIScan(
             }
 
             // Log analyzing trace hit message
-            UE_LOG(LogTemp, Log, TEXT("\tAnalyzing forward trace at slice %d, xIndex %d"), sliceIndex, xIndex);
+            // UE_LOG(LogTemp, Log, TEXT("\tAnalyzing forward trace at slice %d, xIndex %d"), sliceIndex, xIndex);
 
             // Backward trace and reverse results (get hits on back faces of colliders))
             bool backwardTrace = GetWorld()->LineTraceMultiByObjectType(
@@ -81,7 +81,7 @@ void UMRITraceHandler::MRIScan(
             Algo::Reverse(backwardHits);
 
             // Log backwards hits information
-            UE_LOG(LogTemp, Log, TEXT("\tFound %d backwards hit(s)"), backwardHits.Num());
+            // UE_LOG(LogTemp, Log, TEXT("\tFound %d backwards hit(s)"), backwardHits.Num());
 
             // Iterate through hit objects, use the distances between front and back hits to fill slices and segmentations
             for (FHitResult &forwardHit : forwardHits){
@@ -104,10 +104,12 @@ void UMRITraceHandler::MRIScan(
                 UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit.ToString(), *backwardHit->ToString());
 
                 // Fill slice indices between start and end
-                int32 startYIndex = forwardHit.Distance / scale;
-                int32 endYIndex = backwardHit->Distance / scale;
+                int32 startYIndex = forwardHit.Location.Y / scale;
+                int32 endYIndex = backwardHit->Location.Y / scale;
+                // UE_LOG(LogTemp, Log, TEXT("\tstartY, endY = (%d, %d)"), startYIndex, endYIndex);
                 for (int32 yIndex = startYIndex; yIndex < endYIndex; ++yIndex) {
                     int32 index = (sliceIndex * sliceSize * sliceSize) + (xIndex * sliceSize) + yIndex;
+                    // UE_LOG(LogTemp, Log, TEXT("\tSet slices[%d] = 255"), index);
                     if (index < slices.Num()) {
                         slices[index] = 255;
                         segmentations[index] = 255;
