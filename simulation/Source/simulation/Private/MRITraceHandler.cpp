@@ -4,6 +4,7 @@
 #include "MRITraceHandler.h"
 #include <map>
 #include "Algo/Reverse.h"
+#include <iostream>
 
 void UMRITraceHandler::MRIScan(
     const int32 sliceCount, 
@@ -34,6 +35,9 @@ void UMRITraceHandler::MRIScan(
         true, 
         nullptr // No owner
     );
+    const FCollisionObjectQueryParams queryParams = FCollisionObjectQueryParams(
+        ECC_WorldStatic | ECC_WorldDynamic // Trace against static and dynamic objects
+    );
 
 
     // Create each slice by line tracing repetitively
@@ -42,25 +46,19 @@ void UMRITraceHandler::MRIScan(
         // Line trace at each X position
         for (int32 xIndex = 0; xIndex < sliceSize; ++xIndex){
             // Forward trace (get hits on forward faces of colliders)
-            bool forwardTrace = GetWorld()->LineTraceMultiByChannel(
+            bool forwardTrace = GetWorld()->LineTraceMultiByObjectType(
                 forwardHits,
                 start,
                 end,
-                ECC_Visibility,
+                queryParams,
                 collisionParams
             );
 
-            // Draw line
-            DrawDebugLine(
-                GetWorld(),
-                start,
-                end,
-                FColor::Green,
-                true,
-                5.0f,
-                0,
-                1.0f
-            );
+            // Log forward trace hit results
+            UE_LOG(LogTemp, Log, TEXT("Forward trace at slice %d, xIndex %d: %s"), sliceIndex, xIndex, forwardTrace ? TEXT("Hit") : TEXT("Missed"));
+
+            // // Draw line
+            // DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
 
             // If the forward trace did not hit anything, skip to the next linetrace
             if (!forwardTrace) {
@@ -69,39 +67,50 @@ void UMRITraceHandler::MRIScan(
                 continue;
             }
 
+            // Log analyzing trace hit message
+            UE_LOG(LogTemp, Log, TEXT("\tAnalyzing forward trace at slice %d, xIndex %d"), sliceIndex, xIndex);
+
             // Backward trace and reverse results (get hits on back faces of colliders))
-            bool backwardTrace = GetWorld()->LineTraceMultiByChannel(
+            bool backwardTrace = GetWorld()->LineTraceMultiByObjectType(
                 backwardHits,
                 end,
                 start,
-                ECC_Visibility,
+                queryParams,
                 collisionParams
             );
             Algo::Reverse(backwardHits);
 
+            // Log backwards hits information
+            UE_LOG(LogTemp, Log, TEXT("\tFound %d backwards hit(s)"), backwardHits.Num());
+
             // Iterate through hit objects, use the distances between front and back hits to fill slices and segmentations
             for (FHitResult &forwardHit : forwardHits){
                 // Find the object hit by this forward trace
-                UObject *hitObject = forwardHit.GetActor();
+                const AActor *hitObject = forwardHit.GetActor();
 
                 // Find the corresponding backward hit, then remove it from the backward hits array
                 FHitResult *backwardHit = nullptr;
-                for (FHitResult &backwardHitCandidate : backwardHits){
-                    if (backwardHitCandidate.GetActor() == hitObject) {
-                        backwardHit = &backwardHitCandidate;
+                for (int32 i = 0; i < backwardHits.Num(); ++i) {
+                    if (backwardHits[i].GetActor() == hitObject) {
+                        backwardHit = &backwardHits[i];
+                        backwardHits.RemoveAt(i);
                         break;
                     }
                 }
-                backwardHits.Remove(*backwardHit);
+                if (!backwardHit) {
+                    UE_LOG(LogTemp, Log, TEXT("\tNull backwards hit"));
+                    continue;
+                }
+                UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit.ToString(), *backwardHit->ToString());
 
                 // Fill slice indices between start and end
-                int32 startYIndex = forwardHits[0].Distance / scale;
+                int32 startYIndex = forwardHit.Distance / scale;
                 int32 endYIndex = backwardHit->Distance / scale;
                 for (int32 yIndex = startYIndex; yIndex < endYIndex; ++yIndex) {
                     int32 index = (sliceIndex * sliceSize * sliceSize) + (xIndex * sliceSize) + yIndex;
                     if (index < slices.Num()) {
-                        slices[index] = forwardHits[0].Distance;
-                        segmentations[index] = 255; // Assuming segmentation is binary
+                        slices[index] = 255;
+                        segmentations[index] = 255;
                     }
                 }
             }
@@ -115,7 +124,7 @@ void UMRITraceHandler::MRIScan(
 
         // Reset for the next iteration
         start.X = minBounds.X;
-        end.X = maxBounds.X;
+        end.X = minBounds.X;
         start.Z += zIncrement;
         end.Z += zIncrement;
     }
