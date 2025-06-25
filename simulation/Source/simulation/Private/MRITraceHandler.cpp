@@ -36,7 +36,7 @@ void UMRITraceHandler::MRIScan(
         nullptr // No owner
     );
     const FCollisionObjectQueryParams queryParams = FCollisionObjectQueryParams(
-        ECC_WorldStatic | ECC_WorldDynamic // Trace against static and dynamic objects
+        ECC_WorldStatic | ECC_WorldDynamic | ECC_PhysicsBody // Trace against static and dynamic objects
     );
 
 
@@ -58,7 +58,7 @@ void UMRITraceHandler::MRIScan(
             UE_LOG(LogTemp, Log, TEXT("Forward trace at slice %d, xIndex %d: %s"), sliceIndex, xIndex, forwardTrace ? TEXT("Hit") : TEXT("Missed"));
 
             // // Draw line
-            // DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
+            DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
 
             // If the forward trace did not hit anything, skip to the next linetrace
             if (!forwardTrace) {

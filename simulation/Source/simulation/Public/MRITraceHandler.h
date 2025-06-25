@@ -22,5 +22,6 @@ public:
 		const FVector& minBounds, 
 		const FVector& maxBounds, 
 		TArray<uint8>& slices, 
-		TArray<uint8>& segmentations);
+		TArray<uint8>& segmentations
+	);
 };
