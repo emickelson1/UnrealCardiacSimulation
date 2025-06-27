@@ -5,8 +5,8 @@
 #include <iostream>
 
 bool UConvertToNRRD::MakeNRRDs(
-    const TArray<int32>& volumes,
-    const TArray<int32>& segmentations,
+    const TArray<uint8>& volumes,
+    const TArray<uint8>& segmentations,
     const FDirectoryPath& saveDirectory,
     const FString& fileName,
     const FString& description,
@@ -27,7 +27,7 @@ bool UConvertToNRRD::MakeNRRDs(
 }
 
 bool UConvertToNRRD::MakeVolume(
-    const TArray<int32>& volumes,
+    const TArray<uint8>& volumes,
     const FDirectoryPath& saveDirectory,
     const FString& fileName,
     const FString& description,
@@ -43,7 +43,7 @@ bool UConvertToNRRD::MakeVolume(
     // Make header
     FString nrrdHeaderFString = FString::Printf(TEXT(
         "NRRD0005\n"
-        "type: int32\n"
+        "type: uint8\n"
         "dimension: 4\n"
         "sizes: %d %d %d %d\n"
         "encoding: raw\n"
@@ -53,7 +53,7 @@ bool UConvertToNRRD::MakeVolume(
         "content: %s\n"
         "endian: little\n"
         "min: 0\n"
-        "max: 4095\n"
+        "max: 255\n"
         "labels: \"sagittal\" \"coronal\" \"axial\" \"time\"\n"
         "kinds: domain domain domain list\n"
         "\n"
@@ -72,14 +72,14 @@ bool UConvertToNRRD::MakeVolume(
         return false;
     }
     stream.write(nrrdHeader.c_str(), FCStringAnsi::Strlen(nrrdHeader.c_str()));
-    stream.write(reinterpret_cast<const char*>(volumes.GetData()), volumes.Num() * 4);
+    stream.write(reinterpret_cast<const char*>(volumes.GetData()), volumes.Num());
     stream.close();
 
     return true;
 }
 
 bool UConvertToNRRD::MakeSegmentation(
-    const TArray<int32>& segmentations,
+    const TArray<uint8>& segmentations,
     const FDirectoryPath& saveDirectory,
     const FString& fileName,
     const FString& description,
@@ -95,7 +95,7 @@ bool UConvertToNRRD::MakeSegmentation(
     // Make header
     FString nrrdHeaderFString = FString::Printf(TEXT(
         "NRRD0005\n"
-        "type: int32\n"
+        "type: uint8\n"
         "dimension: 4\n"
         "sizes: %d %d %d %d\n"
         "encoding: raw\n"
@@ -105,7 +105,7 @@ bool UConvertToNRRD::MakeSegmentation(
         "content: %s\n"
         "endian: little\n"
         "min: 0\n"
-        "max: 4095\n"
+        "max: 255\n"
         "labels: \"sagittal\" \"coronal\" \"axial\" \"time\"\n"
         "kinds: domain domain domain list\n"
         "\n"
@@ -124,7 +124,7 @@ bool UConvertToNRRD::MakeSegmentation(
         return false;
     }
     stream.write(nrrdHeader.c_str(), FCStringAnsi::Strlen(nrrdHeader.c_str()));
-    stream.write(reinterpret_cast<const char*>(segmentations.GetData()), segmentations.Num() * 4);
+    stream.write(reinterpret_cast<const char*>(segmentations.GetData()), segmentations.Num());
     stream.close();
 
     return true;

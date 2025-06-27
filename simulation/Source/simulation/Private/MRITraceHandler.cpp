@@ -16,8 +16,8 @@ void UMRITraceHandler::MRIScan(
     const float TR,
     const float R1,
     const float Gd,
-    TArray<int32>& volume, 
-    TArray<int32>& segmentation
+    TArray<uint8>& volume, 
+    TArray<uint8>& segmentation
 )
 {
     // Initialize increment values
@@ -120,7 +120,7 @@ void UMRITraceHandler::MRIScan(
                         if (UMaterialInstance *instance = Cast<UMaterialInstance>(materialInterface)) {
                             // Assign a voxel value based on parameters read from material instance
                             volume[index] = ComputeVoxelValue(instance, TE, TR, R1, Gd);
-                            
+
                             // Assign a number based on cardiac chamber name
                             float segmentationIndexParam;
                             segmentationIndexParam = instance->GetScalarParameterValue(FName(TEXT("SegmentationIndex")), segmentationIndexParam);
@@ -148,7 +148,7 @@ void UMRITraceHandler::MRIScan(
     }
 }
 
-int32 UMRITraceHandler::ComputeVoxelValue(
+uint8 UMRITraceHandler::ComputeVoxelValue(
     const UMaterialInstance *material,
     const float TE, 
     const float TR,
@@ -164,5 +164,5 @@ int32 UMRITraceHandler::ComputeVoxelValue(
     // Apply contrast agent adjustment
     T1 = 1 / ((1 / T1) + (Gd * R1));
 
-    return static_cast<int32>(4095 * (1 - std::exp(-TR / T1)) * (std::exp(-TE / T2)));
+    return static_cast<uint8>(255 * (1 - std::exp(-TR / T1)) * (std::exp(-TE / T2)));
 }

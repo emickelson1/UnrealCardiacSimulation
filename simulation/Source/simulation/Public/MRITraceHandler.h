@@ -26,13 +26,13 @@ public:
 		const float TR,
 		const float R1,
 		const float Gd,
-		TArray<int32>& volume, 
-		TArray<int32>& segmentation
+		TArray<uint8>& volume, 
+		TArray<uint8>& segmentation
 	);
 
 private:
 	UFUNCTION(BlueprintCallable, Category = "Capture")
-	int32 ComputeVoxelValue(
+	uint8 ComputeVoxelValue(
 		const UMaterialInstance *material,
 		const float TE, 
 		const float TR,

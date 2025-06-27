@@ -17,8 +17,8 @@ class SIMULATION_API UConvertToNRRD : public UGameInstanceSubsystem
 public:
 	UFUNCTION(BlueprintCallable, Category = "Capture")
 	bool MakeNRRDs(
-		const TArray<int32>& volumes,
-		const TArray<int32>& segmentations,
+		const TArray<uint8>& volumes,
+		const TArray<uint8>& segmentations,
 		const FDirectoryPath& saveDirectory,
 		const FString& fileName,
 		const FString& description,
@@ -33,7 +33,7 @@ public:
 
 private:
 	bool MakeVolume(
-		const TArray<int32>& volumes,
+		const TArray<uint8>& volumes,
 		const FDirectoryPath& saveDirectory,
 		const FString& fileName,
 		const FString& description,
@@ -46,7 +46,7 @@ private:
 		const float spacingZ
 	);
 	bool MakeSegmentation(
-		const TArray<int32>& segmentations,
+		const TArray<uint8>& segmentations,
 		const FDirectoryPath& saveDirectory,
 		const FString& fileName,
 		const FString& description,
