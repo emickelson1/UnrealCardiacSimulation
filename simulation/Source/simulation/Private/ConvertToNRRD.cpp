@@ -4,50 +4,64 @@
 #include <fstream>
 #include <iostream>
 
-const char *NRRD_HEADER = 
-    "NRRD0005\n"
-    "type: uint8\n"
-    "dimension: 4\n"
-    "sizes: %d %d %d %d\n"     // fastest to slowest; Y, X, Z (slices), W (time). Starts from low bottom left corner
-    "encoding: raw\n"
-    "space: left-posterior-superior\n"
-    "endian: little\n"
-    "content: 0-255 values representing MRI scan results\n"
-    "min: 0\n"
-    "max: 255\n"
-    "labels: coronal sagittal axial time\n"
-    "\n";
-
-
-bool UConvertToNRRD::MakeNRRD(
-    const TArray<uint8>& bytes,
+bool UConvertToNRRD::MakeNRRDs(
+    const TArray<int32>& volumes,
+    const TArray<int32>& segmentations,
     const FDirectoryPath& saveDirectory,
     const FString& fileName,
     const FString& description,
-    const int32 sliceCount, 
-    const int32 sliceSize,
-    const int32 timeSteps
+    const int32 timeSteps,
+    const int32 countX,
+    const int32 countY,
+    const int32 countZ,
+    const float spacingX,
+    const float spacingY,
+    const float spacingZ
+)
+{
+    return (
+        MakeVolume(volumes, saveDirectory, fileName, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ) 
+        &&
+        MakeSegmentation(segmentations, saveDirectory, fileName, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ)
+    );
+}
+
+bool UConvertToNRRD::MakeVolume(
+    const TArray<int32>& volumes,
+    const FDirectoryPath& saveDirectory,
+    const FString& fileName,
+    const FString& description,
+    const int32 timeSteps,
+    const int32 countX,
+    const int32 countY,
+    const int32 countZ,
+    const float spacingX,
+    const float spacingY,
+    const float spacingZ
 )
 {
     // Make header
     FString nrrdHeaderFString = FString::Printf(TEXT(
         "NRRD0005\n"
-        "type: uint8\n"
+        "type: int32\n"
         "dimension: 4\n"
         "sizes: %d %d %d %d\n"
         "encoding: raw\n"
-        // "space: left-posterior-superior\n"
-        // "space directions: (1 0 0) (0 1 0) (0 0 1) none\n"
+        "space: right-anterior-superior\n"                          // X increases to the right, Y increases forwards, Z increases upwards
+        "space origin: (0.0, 0.0, 0.0)\n"
+        "space directions: (%f,0,0) (0,%f,0) (0,0,%f) none\n"
         "content: %s\n"
+        "endian: little\n"
         "min: 0\n"
-        "max: 255\n"
-        "labels: \"coronal\" \"sagittal\" \"axial\" \"time\"\n"
+        "max: 4095\n"
+        "labels: \"sagittal\" \"coronal\" \"axial\" \"time\"\n"
+        "kinds: domain domain domain list\n"
         "\n"
-    ), sliceSize, sliceSize, sliceCount, timeSteps, *description);
+    ), countX, countY, countZ, timeSteps, spacingX*10.0f, spacingY*10.0f, spacingZ*10.0f, *description);    // multiply spacings to convert cm to mm
     std::string nrrdHeader = std::string(TCHAR_TO_UTF8(*nrrdHeaderFString));
 
     // Make filepath
-    FString filePath = saveDirectory.Path + "/" + fileName + ".nrrd";
+    FString filePath = saveDirectory.Path + "/" + fileName + "_vol.nrrd";
     std::string stdFilePath(TCHAR_TO_UTF8(*filePath));
 
     // Write data to file
@@ -58,7 +72,59 @@ bool UConvertToNRRD::MakeNRRD(
         return false;
     }
     stream.write(nrrdHeader.c_str(), FCStringAnsi::Strlen(nrrdHeader.c_str()));
-    stream.write(reinterpret_cast<const char*>(bytes.GetData()), bytes.Num());
+    stream.write(reinterpret_cast<const char*>(volumes.GetData()), volumes.Num() * 4);
+    stream.close();
+
+    return true;
+}
+
+bool UConvertToNRRD::MakeSegmentation(
+    const TArray<int32>& segmentations,
+    const FDirectoryPath& saveDirectory,
+    const FString& fileName,
+    const FString& description,
+    const int32 timeSteps,
+    const int32 countX,
+    const int32 countY,
+    const int32 countZ,
+    const float spacingX,
+    const float spacingY,
+    const float spacingZ
+)
+{
+    // Make header
+    FString nrrdHeaderFString = FString::Printf(TEXT(
+        "NRRD0005\n"
+        "type: int32\n"
+        "dimension: 4\n"
+        "sizes: %d %d %d %d\n"
+        "encoding: raw\n"
+        "space: right-anterior-superior\n"                          // X increases to the right, Y increases forwards, Z increases upwards
+        "space origin: (0.0, 0.0, 0.0)\n"
+        "space directions: (%f,0,0) (0,%f,0) (0,0,%f) none\n"
+        "content: %s\n"
+        "endian: little\n"
+        "min: 0\n"
+        "max: 4095\n"
+        "labels: \"sagittal\" \"coronal\" \"axial\" \"time\"\n"
+        "kinds: domain domain domain list\n"
+        "\n"
+    ), countX, countY, countZ, timeSteps, spacingX*10.0f, spacingY*10.0f, spacingZ*10.0f, *description);    // multiply spacings to convert cm to mm
+    std::string nrrdHeader = std::string(TCHAR_TO_UTF8(*nrrdHeaderFString));
+
+    // Make filepath
+    FString filePath = saveDirectory.Path + "/" + fileName + "_seg.nrrd";
+    std::string stdFilePath(TCHAR_TO_UTF8(*filePath));
+
+    // Write data to file
+    std::ofstream stream;
+    stream.open(stdFilePath, std::ofstream::trunc | std::ofstream::binary);
+    if (!stream){
+        UE_LOG(LogTemp, Error, TEXT("Failed to open file for writing: %s"), *filePath);
+        return false;
+    }
+    stream.write(nrrdHeader.c_str(), FCStringAnsi::Strlen(nrrdHeader.c_str()));
+    stream.write(reinterpret_cast<const char*>(segmentations.GetData()), segmentations.Num() * 4);
     stream.close();
 
     return true;

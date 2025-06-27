@@ -7,29 +7,34 @@
 #include <iostream>
 
 void UMRITraceHandler::MRIScan(
-    const int32 sliceCount, 
-    const int32 sliceSize, 
+    const int32 countX,
+    const int32 countY,
+    const int32 countZ,
     const FVector& minBounds, 
     const FVector& maxBounds, 
-    TArray<uint8>& slices, 
-    TArray<uint8>& segmentations
+    const float TE,
+    const float TR,
+    const float R1,
+    const float Gd,
+    TArray<int32>& volume, 
+    TArray<int32>& segmentation
 )
 {
     // Initialize increment values
-	const float zIncrement = (maxBounds.Z - minBounds.Z) / sliceCount;
-    const float xIncrement = (maxBounds.X - minBounds.X) / sliceSize;
-    float scale = (maxBounds.Y - minBounds.Y) / sliceSize;
+    const float xScale = (maxBounds.X - minBounds.X) / countX;       // X is assigned a scale because it is determined as a function of distance between hits
+    const float yIncrement = (maxBounds.Y - minBounds.Y) / countY;
+	const float zIncrement = (maxBounds.Z - minBounds.Z) / countZ;
 
     // Define slices and segmentation array size
-    slices.SetNum(sliceCount * sliceSize * sliceSize);
-    segmentations.SetNum(sliceCount * sliceSize * sliceSize);
+    volume.SetNum(countZ * countY * countX);
+    segmentation.SetNum(countZ * countY * countX);
 
     // Initialize line trace parameters
     TArray<FHitResult> forwardHits;
     TArray<FHitResult> backwardHits;
     FVector start = minBounds;
     FVector end = minBounds;
-    end.Y = maxBounds.Y;
+    end.X = maxBounds.X;
     const FCollisionQueryParams collisionParams = FCollisionQueryParams(
         FName(TEXT("MRITrace")), 
         true, 
@@ -41,10 +46,10 @@ void UMRITraceHandler::MRIScan(
 
 
     // Create each slice by line tracing repetitively
-    for (int32 sliceIndex = 0; sliceIndex < sliceCount; ++sliceIndex)
+    for (int32 zIndex = 0; zIndex < countZ; ++zIndex)
     {
-        // Line trace at each X position
-        for (int32 xIndex = 0; xIndex < sliceSize; ++xIndex){
+        // Line trace at each Y position
+        for (int32 yIndex = 0; yIndex < countY; ++yIndex){
             // Forward trace (get hits on forward faces of colliders)
             bool forwardTrace = GetWorld()->LineTraceMultiByObjectType(
                 forwardHits,
@@ -55,15 +60,15 @@ void UMRITraceHandler::MRIScan(
             );
 
             // Log forward trace hit results
-            UE_LOG(LogTemp, Log, TEXT("Forward trace at slice %d, xIndex %d: %s"), sliceIndex, xIndex, forwardTrace ? TEXT("Hit") : TEXT("Missed"));
+            UE_LOG(LogTemp, Log, TEXT("Forward trace at slice %d, yIndex %d: %s"), zIndex, yIndex, forwardTrace ? TEXT("Hit") : TEXT("Missed"));
 
             // // Draw line
-            DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
+            // DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
 
             // If the forward trace did not hit anything, skip to the next linetrace
             if (!forwardTrace) {
-                start.X += xIncrement;
-                end.X += xIncrement;
+                start.Y += yIncrement;
+                end.Y += yIncrement;
                 continue;
             }
 
@@ -104,30 +109,60 @@ void UMRITraceHandler::MRIScan(
                 UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit.ToString(), *backwardHit->ToString());
 
                 // Fill slice indices between start and end
-                int32 startYIndex = forwardHit.Location.Y / scale;
-                int32 endYIndex = backwardHit->Location.Y / scale;
+                int32 startXIndex = forwardHit.Location.X / xScale;
+                int32 endXIndex = backwardHit->Location.X / xScale;
                 // UE_LOG(LogTemp, Log, TEXT("\tstartY, endY = (%d, %d)"), startYIndex, endYIndex);
-                for (int32 yIndex = startYIndex; yIndex < endYIndex; ++yIndex) {
-                    int32 index = (sliceIndex * sliceSize * sliceSize) + (xIndex * sliceSize) + yIndex;
+                for (int32 xIndex = startXIndex; xIndex < endXIndex; ++xIndex) {
+                    int32 index = (countX * countY * zIndex) + (countY * yIndex) + xIndex;
                     // UE_LOG(LogTemp, Log, TEXT("\tSet slices[%d] = 255"), index);
-                    if (index < slices.Num()) {
-                        slices[index] = 255;
-                        segmentations[index] = 255;
+                    if (index < volume.Num()) {
+                        UMaterialInterface *materialInterface = forwardHit.GetComponent()->GetMaterial(0);
+                        if (UMaterialInstance *instance = Cast<UMaterialInstance>(materialInterface)) {
+                            // Assign a voxel value based on parameters read from material instance
+                            volume[index] = ComputeVoxelValue(instance, TE, TR, R1, Gd);
+                            
+                            // Assign a number based on cardiac chamber name
+                            float segmentationIndexParam;
+                            segmentationIndexParam = instance->GetScalarParameterValue(FName(TEXT("SegmentationIndex")), segmentationIndexParam);
+                            segmentation[index] = (int) segmentationIndexParam;
+                        }
+                        else {
+                            UE_LOG(LogTemp, Warning, TEXT("Material is not a UMaterialInstance: %s"), *materialInterface->GetName());
+                        }
                     }
                 }
             }
 
-            // Increment x values for the next iteration
+            // Increment y values for the next iteration
             forwardHits.Empty();
             backwardHits.Empty();
-            start.X += xIncrement;
-            end.X += xIncrement;
+            start.Y += yIncrement;
+            end.Y += yIncrement;
         }
 
         // Reset for the next iteration
-        start.X = minBounds.X;
-        end.X = minBounds.X;
+        start.Y = minBounds.Y;
+        end.Y = minBounds.Y;
         start.Z += zIncrement;
         end.Z += zIncrement;
     }
+}
+
+int32 UMRITraceHandler::ComputeVoxelValue(
+    const UMaterialInstance *material,
+    const float TE, 
+    const float TR,
+    const float R1,
+    const float Gd
+) 
+{
+    // Get material T1, T2
+    float T1, T2;
+    T1 = material->GetScalarParameterValue(FName(TEXT("T1")), T1);
+    T2 = material->GetScalarParameterValue(FName(TEXT("T2")), T2);
+
+    // Apply contrast agent adjustment
+    T1 = 1 / ((1 / T1) + (Gd * R1));
+
+    return static_cast<int32>(4095 * (1 - std::exp(-TR / T1)) * (std::exp(-TE / T2)));
 }

@@ -17,11 +17,26 @@ class SIMULATION_API UMRITraceHandler : public UGameInstanceSubsystem
 public:
 	UFUNCTION(BlueprintCallable, Category = "Capture")
 	void MRIScan(
-		const int32 sliceCount, 
-		const int32 sliceSize, 
+		const int32 countX,
+		const int32 countY,
+		const int32 countZ,
 		const FVector& minBounds, 
 		const FVector& maxBounds, 
-		TArray<uint8>& slices, 
-		TArray<uint8>& segmentations
+		const float TE,
+		const float TR,
+		const float R1,
+		const float Gd,
+		TArray<int32>& volume, 
+		TArray<int32>& segmentation
+	);
+
+private:
+	UFUNCTION(BlueprintCallable, Category = "Capture")
+	int32 ComputeVoxelValue(
+		const UMaterialInstance *material,
+		const float TE, 
+		const float TR,
+		const float R1,
+		const float Gd
 	);
 };
