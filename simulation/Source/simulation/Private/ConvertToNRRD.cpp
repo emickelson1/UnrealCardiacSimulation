@@ -49,7 +49,7 @@ bool UConvertToNRRD::MakeVolume(
         "encoding: raw\n"
         "space: right-anterior-superior\n"                          // X increases to the right, Y increases forwards, Z increases upwards
         "space origin: (0.0, 0.0, 0.0)\n"
-        "space directions: (%f,0,0) (0,%f,0) (0,0,%f) none\n"
+        "space directions: (%f,0,0) (0,-%f,0) (0,0,%f) none\n"
         "content: %s\n"
         "endian: little\n"
         "min: 0\n"
@@ -101,7 +101,7 @@ bool UConvertToNRRD::MakeSegmentation(
         "encoding: raw\n"
         "space: right-anterior-superior\n"                          // X increases to the right, Y increases forwards, Z increases upwards
         "space origin: (0.0, 0.0, 0.0)\n"
-        "space directions: (%f,0,0) (0,%f,0) (0,0,%f) none\n"
+        "space directions: (%f,0,0) (0,-%f,0) (0,0,%f) none\n"
         "content: %s\n"
         "endian: little\n"
         "min: 0\n"

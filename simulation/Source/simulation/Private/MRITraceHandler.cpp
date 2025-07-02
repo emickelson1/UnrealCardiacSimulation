@@ -63,7 +63,7 @@ void UMRITraceHandler::MRIScan(
             UE_LOG(LogTemp, Log, TEXT("Forward trace at slice %d, yIndex %d: %s"), zIndex, yIndex, forwardTrace ? TEXT("Hit") : TEXT("Missed"));
 
             // // Draw line
-            // DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
+            DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
 
             // If the forward trace did not hit anything, skip to the next linetrace
             if (!forwardTrace) {
@@ -83,48 +83,60 @@ void UMRITraceHandler::MRIScan(
                 queryParams,
                 collisionParams
             );
-            Algo::Reverse(backwardHits);
 
-            // Log backwards hits information
-            // UE_LOG(LogTemp, Log, TEXT("\tFound %d backwards hit(s)"), backwardHits.Num());
+            // Sort forwardHits by Distance ascending (entry points)
+            forwardHits.Sort([](const FHitResult& A, const FHitResult& B) {
+                return A.Distance < B.Distance;
+            });
+            // Sort backwardHits by Distance descending (exit points)
+            backwardHits.Sort([](const FHitResult& A, const FHitResult& B) {
+                return A.Distance > B.Distance;
+            });
 
-            // Iterate through hit objects, use the distances between front and back hits to fill slices and segmentations
-            for (FHitResult &forwardHit : forwardHits){
-                // Find the object hit by this forward trace
-                const AActor *hitObject = forwardHit.GetActor();
+            // Map to store entry and exit hits for each unique component
+            TMap<const UPrimitiveComponent*, TPair<const FHitResult*, const FHitResult*>> hitPairs;
 
-                // Find the corresponding backward hit, then remove it from the backward hits array
-                FHitResult *backwardHit = nullptr;
-                for (int32 i = 0; i < backwardHits.Num(); ++i) {
-                    if (backwardHits[i].GetActor() == hitObject) {
-                        backwardHit = &backwardHits[i];
-                        backwardHits.RemoveAt(i);
-                        break;
-                    }
+            // Find entry (closest) and exit (farthest) hits for each component
+            for (const FHitResult& hit : forwardHits) {
+                const UPrimitiveComponent* comp = hit.GetComponent();
+                if (comp && !hitPairs.Contains(comp)) {
+                    hitPairs.Add(comp, TPair<const FHitResult*, const FHitResult*>(&hit, nullptr));
                 }
-                if (!backwardHit) {
-                    UE_LOG(LogTemp, Log, TEXT("\tNull backwards hit"));
+            }
+            for (const FHitResult& hit : backwardHits) {
+                const UPrimitiveComponent* comp = hit.GetComponent();
+                if (comp && hitPairs.Contains(comp) && hitPairs[comp].Value == nullptr) {
+                    hitPairs[comp].Value = &hit;
+                }
+            }
+
+            // Iterate through paired hits and fill slices and segmentations
+            for (auto& Elem : hitPairs) {
+                const FHitResult* forwardHit = Elem.Value.Key;
+                const FHitResult* backwardHit = Elem.Value.Value;
+                if (!forwardHit || !backwardHit) {
+                    UE_LOG(LogTemp, Log, TEXT("\tNull paired hit for component %s"), *Elem.Key->GetName());
                     continue;
                 }
-                UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit.ToString(), *backwardHit->ToString());
+                UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit->ToString(), *backwardHit->ToString());
 
                 // Fill slice indices between start and end
-                int32 startXIndex = forwardHit.Location.X / xScale;
+                int32 startXIndex = forwardHit->Location.X / xScale;
                 int32 endXIndex = backwardHit->Location.X / xScale;
                 // UE_LOG(LogTemp, Log, TEXT("\tstartY, endY = (%d, %d)"), startYIndex, endYIndex);
                 for (int32 xIndex = startXIndex; xIndex < endXIndex; ++xIndex) {
                     int32 index = (countX * countY * zIndex) + (countY * yIndex) + xIndex;
                     // UE_LOG(LogTemp, Log, TEXT("\tSet slices[%d] = 255"), index);
                     if (index < volume.Num()) {
-                        UMaterialInterface *materialInterface = forwardHit.GetComponent()->GetMaterial(0);
+                        UMaterialInterface *materialInterface = forwardHit->GetComponent()->GetMaterial(0);
                         if (UMaterialInstance *instance = Cast<UMaterialInstance>(materialInterface)) {
                             // Assign a voxel value based on parameters read from material instance
                             volume[index] = ComputeVoxelValue(instance, TE, TR, R1, Gd);
 
                             // Assign a number based on cardiac chamber name
                             float segmentationIndexParam;
-                            segmentationIndexParam = instance->GetScalarParameterValue(FName(TEXT("SegmentationIndex")), segmentationIndexParam);
-                            segmentation[index] = (int) segmentationIndexParam;
+                            bool success = instance->GetScalarParameterValue(FName(TEXT("Segmentation Index")), segmentationIndexParam);
+                            segmentation[index] = success ? std::round(segmentationIndexParam): -1;
                         }
                         else {
                             UE_LOG(LogTemp, Warning, TEXT("Material is not a UMaterialInstance: %s"), *materialInterface->GetName());
