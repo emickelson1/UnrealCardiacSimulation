@@ -35,94 +35,34 @@ void UMRITraceHandler::MRIScan(
     FVector start = minBounds;
     FVector end = minBounds;
     end.X = maxBounds.X;
-    const FCollisionQueryParams collisionParams = FCollisionQueryParams(
-        FName(TEXT("MRITrace")), 
-        true, 
-        nullptr // No owner
-    );
-    const FCollisionObjectQueryParams queryParams = FCollisionObjectQueryParams(
-        ECC_WorldStatic | ECC_WorldDynamic | ECC_PhysicsBody // Trace against static and dynamic objects
-    );
-
-
+    const FCollisionQueryParams collisionParams = FCollisionQueryParams(FName(TEXT("MRITrace")), true, nullptr);
+    const FCollisionObjectQueryParams queryParams = FCollisionObjectQueryParams(ECC_WorldStatic | ECC_WorldDynamic | ECC_PhysicsBody);
+    
     // Create each slice by line tracing repetitively
     for (int32 zIndex = 0; zIndex < countZ; ++zIndex)
     {
         // Line trace at each Y position
-        for (int32 yIndex = 0; yIndex < countY; ++yIndex){
-            // Forward trace (get hits on forward faces of colliders)
-            bool forwardTrace = GetWorld()->LineTraceMultiByObjectType(
-                forwardHits,
-                start,
-                end,
-                queryParams,
-                collisionParams
-            );
-
-            // Log forward trace hit results
-            UE_LOG(LogTemp, Log, TEXT("Forward trace at slice %d, yIndex %d: %s"), zIndex, yIndex, forwardTrace ? TEXT("Hit") : TEXT("Missed"));
-
+        for (int32 yIndex = 0; yIndex < countY; ++yIndex) {
             // // Draw line
-            DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
+            // DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
 
-            // If the forward trace did not hit anything, skip to the next linetrace
-            if (!forwardTrace) {
-                start.Y += yIncrement;
-                end.Y += yIncrement;
-                continue;
-            }
-
-            // Log analyzing trace hit message
-            // UE_LOG(LogTemp, Log, TEXT("\tAnalyzing forward trace at slice %d, xIndex %d"), sliceIndex, xIndex);
-
-            // Backward trace and reverse results (get hits on back faces of colliders))
-            bool backwardTrace = GetWorld()->LineTraceMultiByObjectType(
-                backwardHits,
-                end,
-                start,
-                queryParams,
-                collisionParams
-            );
-
-            // Sort forwardHits by Distance ascending (entry points)
-            forwardHits.Sort([](const FHitResult& A, const FHitResult& B) {
-                return A.Distance < B.Distance;
-            });
-            // Sort backwardHits by Distance descending (exit points)
-            backwardHits.Sort([](const FHitResult& A, const FHitResult& B) {
-                return A.Distance > B.Distance;
-            });
-
-            // Map to store entry and exit hits for each unique component
-            TMap<const UPrimitiveComponent*, TPair<const FHitResult*, const FHitResult*>> hitPairs;
-
-            // Find entry (closest) and exit (farthest) hits for each component
-            for (const FHitResult& hit : forwardHits) {
-                const UPrimitiveComponent* comp = hit.GetComponent();
-                if (comp && !hitPairs.Contains(comp)) {
-                    hitPairs.Add(comp, TPair<const FHitResult*, const FHitResult*>(&hit, nullptr));
-                }
-            }
-            for (const FHitResult& hit : backwardHits) {
-                const UPrimitiveComponent* comp = hit.GetComponent();
-                if (comp && hitPairs.Contains(comp) && hitPairs[comp].Value == nullptr) {
-                    hitPairs[comp].Value = &hit;
-                }
-            }
+            // Do line traces
+            DoLineTrace(start, end, 1, queryParams, collisionParams, forwardHits, backwardHits);
+            const TArray<TPair<FHitResult*, FHitResult*>> hitPairs = MakePairs(forwardHits, backwardHits);
 
             // Iterate through paired hits and fill slices and segmentations
-            for (auto& Elem : hitPairs) {
-                const FHitResult* forwardHit = Elem.Value.Key;
-                const FHitResult* backwardHit = Elem.Value.Value;
-                if (!forwardHit || !backwardHit) {
-                    UE_LOG(LogTemp, Log, TEXT("\tNull paired hit for component %s"), *Elem.Key->GetName());
-                    continue;
-                }
-                UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit->ToString(), *backwardHit->ToString());
+            for (TPair<FHitResult*, FHitResult*> pair : hitPairs) {
+                // Break pair
+                const FHitResult* forwardHit = pair.Key;
+                const FHitResult* backwardHit = pair.Value;
+                
+                // Log hit results
+                // UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit->ToString(), *backwardHit->ToString());
 
                 // Fill slice indices between start and end
                 int32 startXIndex = forwardHit->Location.X / xScale;
-                int32 endXIndex = backwardHit->Location.X / xScale;
+                int32 endXIndex = backwardHit != nullptr ? backwardHit->Location.X / xScale : countX;   // If no backward hit, go to the end of the slice
+                
                 // UE_LOG(LogTemp, Log, TEXT("\tstartY, endY = (%d, %d)"), startYIndex, endYIndex);
                 for (int32 xIndex = startXIndex; xIndex < endXIndex; ++xIndex) {
                     int32 index = (countX * countY * zIndex) + (countY * yIndex) + xIndex;
@@ -177,4 +117,99 @@ uint8 UMRITraceHandler::ComputeVoxelValue(
     T1 = 1 / ((1 / T1) + (Gd * R1));
 
     return static_cast<uint8>(255 * (1 - std::exp(-TR / T1)) * (std::exp(-TE / T2)));
+}
+
+bool UMRITraceHandler::DoLineTrace(
+    const FVector& start, 
+    const FVector& end, 
+    const int substeps,
+    const FCollisionObjectQueryParams& queryParams, 
+    const FCollisionQueryParams& collisionParams,
+    TArray<FHitResult>& accForwardHits,
+    TArray<FHitResult>& accReverseHits
+){
+    // Break recursion if substeps < 0
+    if (substeps < 0) {
+        return false;
+    }
+
+    // Initialize forward and reverse hits
+    TArray<FHitResult> forwardHits;
+    TArray<FHitResult> reverseHits;
+
+    // Perform line trace in forward direction
+    bool forwardTrace = GetWorld()->LineTraceMultiByObjectType(forwardHits, start, end, queryParams, collisionParams);
+    if (!forwardTrace) {
+        return false;
+    }
+
+    // Perform line trace in reverse direction
+    bool reverseTrace = GetWorld()->LineTraceMultiByObjectType(reverseHits, end, start, queryParams, collisionParams);
+
+    if ((forwardHit.Location() - reverseTrace.Location()).Size() < 1){
+        return false;
+    }
+
+    // If both traces were successful, accumulate the hits
+    accForwardHits.Append(forwardHits);
+    accReverseHits.Append(reverseHits);
+
+    // Recursive call to enable multiple collisions on the same component
+    if (substeps > 0) {
+        for (TPair<FHitResult*, FHitResult*> pair : MakePairs(forwardHits, reverseHits)) {
+            if (pair.Value == nullptr) { break; }
+            FVector forward = pair.Key->Location;
+            FVector reverse = pair.Value->Location;
+            FVector center = (forward + reverse) / 2.0f;
+            DoLineTrace(center, forward, substeps - 1, queryParams, collisionParams, accForwardHits, accReverseHits);
+            DoLineTrace(reverse, center, substeps - 1, queryParams, collisionParams, accReverseHits, accForwardHits);
+        }
+    }
+
+    return true;
+}
+
+TArray<TPair<FHitResult*, FHitResult*>> UMRITraceHandler::MakePairs(
+    const TArray<FHitResult>& forwardHits,
+    const TArray<FHitResult>& reverseHits
+){
+    TArray<TPair<FHitResult*, FHitResult*>> hitPairs;
+
+    for (FHitResult forwardHit : forwardHits) {
+        FHitResult* bestMatch = nullptr;
+        const UPrimitiveComponent* hitComponent = forwardHit.GetComponent();
+
+        // Find the corresponding reverse hit
+        for (FHitResult reverseHit : reverseHits) {
+            // If the reverse hit is not from the same component, skip it
+            if (reverseHit.GetComponent() != hitComponent) { continue; }
+            
+            // If this is the first reverse hit, set it as the best match
+            if (bestMatch == nullptr){
+                bestMatch = &reverseHit;
+                continue;
+            }
+
+            // Check if the reverse hit is already paired with another forward hit
+            bool alreadyPaired = false;
+            for (TPair<FHitResult*, FHitResult*> pair : hitPairs) {
+                if (pair.Value == &reverseHit) {
+                    // If the reverse hit is already paired, skip it
+                    alreadyPaired = true;
+                }
+            }
+            if (alreadyPaired) { continue; }
+
+            // If the reverse hit is closer than the current best match, update the best match
+            if ((forwardHit.Location - reverseHit.Location).Size() < (forwardHit.Location - bestMatch->Location).Size()) {
+                bestMatch = &reverseHit;
+                continue;
+            }
+        }
+
+        // Add pair to the array
+        hitPairs.Add(TPair<FHitResult*, FHitResult*>(&forwardHit, bestMatch));
+    }
+
+    return hitPairs;
 }
