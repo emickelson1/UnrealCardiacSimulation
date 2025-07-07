@@ -49,6 +49,14 @@ private:
 		TArray<FHitResult>& accReverseHits
 	);
 
+	bool DoAdditionalDetailTrace(
+		const FVector& start, 
+		const FVector& end, 
+		const FCollisionObjectQueryParams& queryParams, 
+		const FCollisionQueryParams& collisionParams,
+		FHitResult& outHitResult
+	);
+
 	TArray<TPair<FHitResult*, FHitResult*>> MakePairs(
 		const TArray<FHitResult>& forwardHits,
 		const TArray<FHitResult>& reverseHits

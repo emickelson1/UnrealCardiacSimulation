@@ -43,9 +43,6 @@ void UMRITraceHandler::MRIScan(
     {
         // Line trace at each Y position
         for (int32 yIndex = 0; yIndex < countY; ++yIndex) {
-            // // Draw line
-            // DrawDebugLine(GetWorld(), start, end, FColor::Green, true, 5.0f, 0, 1.0f);
-
             // Do line traces
             DoLineTrace(start, end, 1, queryParams, collisionParams, forwardHits, backwardHits);
             const TArray<TPair<FHitResult*, FHitResult*>> hitPairs = MakePairs(forwardHits, backwardHits);
@@ -68,19 +65,24 @@ void UMRITraceHandler::MRIScan(
                     int32 index = (countX * countY * zIndex) + (countY * yIndex) + xIndex;
                     // UE_LOG(LogTemp, Log, TEXT("\tSet slices[%d] = 255"), index);
                     if (index < volume.Num()) {
-                        UMaterialInterface *materialInterface = forwardHit->GetComponent()->GetMaterial(0);
-                        if (UMaterialInstance *instance = Cast<UMaterialInstance>(materialInterface)) {
-                            // Assign a voxel value based on parameters read from material instance
-                            volume[index] = ComputeVoxelValue(instance, TE, TR, R1, Gd);
+                        if (forwardHit != nullptr && forwardHit->GetComponent() != nullptr) {
+                            UMaterialInterface *materialInterface = forwardHit->GetComponent()->GetMaterial(0);
+                            if (UMaterialInstance *instance = Cast<UMaterialInstance>(materialInterface)) {
+                                // Assign a voxel value based on parameters read from material instance
+                                volume[index] = ComputeVoxelValue(instance, TE, TR, R1, Gd);
 
-                            // Assign a number based on cardiac chamber name
-                            float segmentationIndexParam;
-                            bool success = instance->GetScalarParameterValue(FName(TEXT("Segmentation Index")), segmentationIndexParam);
-                            segmentation[index] = success ? std::round(segmentationIndexParam): -1;
+                                // Assign a number based on cardiac chamber name
+                                float segmentationIndexParam;
+                                bool success = instance->GetScalarParameterValue(FName(TEXT("Segmentation Index")), segmentationIndexParam);
+                                segmentation[index] = success ? std::round(segmentationIndexParam): -1;
+                            }
+                            else {
+                                UE_LOG(LogTemp, Warning, TEXT("Material is not a UMaterialInstance: %s"), *materialInterface->GetName());
+                            }
+                        } else if (index % 100 == 0){
+                            UE_LOG(LogTemp, Warning, TEXT("%s is null at index %d. Note that only indices divisible by 100 will be logged."), forwardHit == nullptr ? TEXT("Forward hit") : TEXT("Component"), index);
                         }
-                        else {
-                            UE_LOG(LogTemp, Warning, TEXT("Material is not a UMaterialInstance: %s"), *materialInterface->GetName());
-                        }
+                        
                     }
                 }
             }
@@ -127,47 +129,74 @@ bool UMRITraceHandler::DoLineTrace(
     const FCollisionQueryParams& collisionParams,
     TArray<FHitResult>& accForwardHits,
     TArray<FHitResult>& accReverseHits
-){
-    // Break recursion if substeps < 0
-    if (substeps < 0) {
-        return false;
-    }
-
+) 
+{
     // Initialize forward and reverse hits
-    TArray<FHitResult> forwardHits;
-    TArray<FHitResult> reverseHits;
+    TArray<FHitResult> forwardHits, reverseHits;
 
     // Perform line trace in forward direction
     bool forwardTrace = GetWorld()->LineTraceMultiByObjectType(forwardHits, start, end, queryParams, collisionParams);
+
+    // Draw a line from start to end for debugging purposes
+    // white: good, grey: bad (some missing components), black: bad (no components found), red: good (forward trace missed)
+    bool allComponentsFound = true, noComponentsFound = true;
+    for (const FHitResult& hit : forwardHits) { hit.GetComponent() == nullptr ? allComponentsFound = false : noComponentsFound = false; }
+    auto& color = allComponentsFound ? (noComponentsFound ? FColor::Red : FColor::White) : (noComponentsFound ? FColor::Black : FColor(128, 128, 128));
+    DrawDebugLine(GetWorld(), start, end, color, true, 5.0f, 0, 1.0f);
+
+    // If the trace missed, return here.
     if (!forwardTrace) {
         return false;
     }
 
     // Perform line trace in reverse direction
     bool reverseTrace = GetWorld()->LineTraceMultiByObjectType(reverseHits, end, start, queryParams, collisionParams);
-
-    if ((forwardHit.Location() - reverseTrace.Location()).Size() < 1){
+    if (!reverseTrace) {
+        UE_LOG(LogTemp, Warning, TEXT("Reverse trace failed from %s to %s despite forward trace success."), *end.ToString(), *start.ToString());
         return false;
     }
 
-    // If both traces were successful, accumulate the hits
+    // If both traces were successful, accumulate the hits. Apply reverse boolean at this step if necessary.
     accForwardHits.Append(forwardHits);
     accReverseHits.Append(reverseHits);
 
     // Recursive call to enable multiple collisions on the same component
-    if (substeps > 0) {
+    for (int32 i = 0; i < substeps; i++){
         for (TPair<FHitResult*, FHitResult*> pair : MakePairs(forwardHits, reverseHits)) {
             if (pair.Value == nullptr) { break; }
-            FVector forward = pair.Key->Location;
-            FVector reverse = pair.Value->Location;
-            FVector center = (forward + reverse) / 2.0f;
-            DoLineTrace(center, forward, substeps - 1, queryParams, collisionParams, accForwardHits, accReverseHits);
-            DoLineTrace(reverse, center, substeps - 1, queryParams, collisionParams, accReverseHits, accForwardHits);
+            FVector close = pair.Key->Location;
+            FVector far = pair.Value->Location;
+            FVector origin = close + ((i+1.0f) / (substeps + 1.0f)) * (far - close); // Get a point between the two hits, lerp by index
+
+            // Do additional detail trace
+            FHitResult addForwardHit, addReverseHit;
+            bool addForwardTrace = DoAdditionalDetailTrace(origin, far, queryParams, collisionParams, addForwardHit);     // away from camera
+            bool addReverseTrace = DoAdditionalDetailTrace(origin, close, queryParams, collisionParams, addReverseHit);   // towards camera
+            if (addForwardTrace && addReverseTrace && (addForwardHit.Location - addReverseHit.Location).Size() >= 1){
+                // If both additional traces were successful, accumulate the hits
+                accForwardHits.Add(addForwardHit);
+                accReverseHits.Add(addReverseHit);
+            }
         }
     }
 
     return true;
 }
+
+
+
+bool UMRITraceHandler::DoAdditionalDetailTrace(
+    const FVector& start, 
+    const FVector& end, 
+    const FCollisionObjectQueryParams& queryParams, 
+    const FCollisionQueryParams& collisionParams,
+    FHitResult& outHitResult
+) 
+{
+    // Perform the line trace
+    return GetWorld()->LineTraceSingleByObjectType(outHitResult, start, end, queryParams, collisionParams);
+}
+
 
 TArray<TPair<FHitResult*, FHitResult*>> UMRITraceHandler::MakePairs(
     const TArray<FHitResult>& forwardHits,
@@ -209,6 +238,10 @@ TArray<TPair<FHitResult*, FHitResult*>> UMRITraceHandler::MakePairs(
 
         // Add pair to the array
         hitPairs.Add(TPair<FHitResult*, FHitResult*>(&forwardHit, bestMatch));
+    }
+
+    if (hitPairs.Num() != (forwardHits.Num() + reverseHits.Num()) / 2) {
+        UE_LOG(LogTemp, Warning, TEXT("Hit pairs count (%d) does not match total hits count (%d, %d). This may indicate a problem with the line trace."), hitPairs.Num(), forwardHits.Num(), reverseHits.Num());
     }
 
     return hitPairs;
