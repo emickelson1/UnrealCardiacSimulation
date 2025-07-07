@@ -204,40 +204,57 @@ TArray<TPair<FHitResult*, FHitResult*>> UMRITraceHandler::MakePairs(
 ){
     TArray<TPair<FHitResult*, FHitResult*>> hitPairs;
 
-    for (FHitResult forwardHit : forwardHits) {
-        FHitResult* bestMatch = nullptr;
-        const UPrimitiveComponent* hitComponent = forwardHit.GetComponent();
+    for (int32 i = 0; i < forwardHits.Num(); ++i) {
+        // Get forward hit
+        const FHitResult *forwardHit = &forwardHits[i];
 
-        // Find the corresponding reverse hit
-        for (FHitResult reverseHit : reverseHits) {
+        // Error check on this forward hit
+        if (forwardHit->GetComponent() == nullptr) {
+            UE_LOG(LogTemp, Warning, TEXT("Forward hit has no component."));
+            break;
+        }
+
+        FHitResult *bestMatch = nullptr;
+        const UPrimitiveComponent* hitComponent = forwardHit->GetComponent();
+        for (int32 j = 0; j < reverseHits.Num(); ++j) {
+            // Get reverse hit
+            const FHitResult *reverseHit = &reverseHits[j];
+
+            // Error check on this reverse hit
+            if (reverseHit->GetComponent() == nullptr) {
+                UE_LOG(LogTemp, Warning, TEXT("Reverse hit has no component."));
+                continue;
+            }
+
             // If the reverse hit is not from the same component, skip it
-            if (reverseHit.GetComponent() != hitComponent) { continue; }
-            
+            if (reverseHit->GetComponent() != hitComponent) { continue; }
+
             // If this is the first reverse hit, set it as the best match
             if (bestMatch == nullptr){
-                bestMatch = &reverseHit;
+                bestMatch = const_cast<FHitResult*>(reverseHit);
                 continue;
             }
 
             // Check if the reverse hit is already paired with another forward hit
             bool alreadyPaired = false;
             for (TPair<FHitResult*, FHitResult*> pair : hitPairs) {
-                if (pair.Value == &reverseHit) {
+                if (pair.Value == reverseHit) {
                     // If the reverse hit is already paired, skip it
                     alreadyPaired = true;
+                    break;
                 }
             }
             if (alreadyPaired) { continue; }
 
             // If the reverse hit is closer than the current best match, update the best match
-            if ((forwardHit.Location - reverseHit.Location).Size() < (forwardHit.Location - bestMatch->Location).Size()) {
-                bestMatch = &reverseHit;
+            if ((forwardHit->Location - reverseHit->Location).Size() < (forwardHit->Location - bestMatch->Location).Size()) {
+                bestMatch = const_cast<FHitResult*>(reverseHit);
                 continue;
             }
         }
 
         // Add pair to the array
-        hitPairs.Add(TPair<FHitResult*, FHitResult*>(&forwardHit, bestMatch));
+        hitPairs.Add(TPair<FHitResult*, FHitResult*>(const_cast<FHitResult*>(forwardHit), bestMatch));
     }
 
     if (hitPairs.Num() != (forwardHits.Num() + reverseHits.Num()) / 2) {
