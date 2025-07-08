@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreMinimal.h" 
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "MRITraceHandler.generated.h"
 
@@ -31,12 +31,34 @@ public:
 	);
 
 private:
-	UFUNCTION(BlueprintCallable, Category = "Capture")
 	uint8 ComputeVoxelValue(
 		const UMaterialInstance *material,
 		const float TE, 
 		const float TR,
 		const float R1,
 		const float Gd
+	);
+
+	bool DoLineTrace(
+		const FVector& start, 
+		const FVector& end, 
+		const int substeps,
+		const FCollisionObjectQueryParams& queryParams, 
+		const FCollisionQueryParams& collisionParams,
+		TArray<FHitResult>& accForwardHits,
+		TArray<FHitResult>& accReverseHits
+	);
+
+	bool DoAdditionalDetailTrace(
+		const FVector& start, 
+		const FVector& end, 
+		const FCollisionObjectQueryParams& queryParams, 
+		const FCollisionQueryParams& collisionParams,
+		FHitResult& outHitResult
+	);
+
+	TArray<TPair<FHitResult*, FHitResult*>> MakePairs(
+		const TArray<FHitResult>& forwardHits,
+		const TArray<FHitResult>& reverseHits
 	);
 };
