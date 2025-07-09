@@ -90,3 +90,6 @@ simulation/GenerateProjectFiles.sh
 
 # Script for quickly launching UE5 on linux
 launch_ue5.sh
+
+# Python virtual environment
+python/.venv/
