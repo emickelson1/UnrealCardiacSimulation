@@ -137,12 +137,12 @@ bool UMRITraceHandler::DoLineTrace(
     // Perform line trace in forward direction
     bool forwardTrace = GetWorld()->LineTraceMultiByObjectType(forwardHits, start, end, queryParams, collisionParams);
 
-    // Draw a line from start to end for debugging purposes
-    // white: good, grey: bad (some missing components), black: bad (no components found), red: good (forward trace missed)
-    bool allComponentsFound = true, noComponentsFound = true;
-    for (const FHitResult& hit : forwardHits) { hit.GetComponent() == nullptr ? allComponentsFound = false : noComponentsFound = false; }
-    auto& color = allComponentsFound ? (noComponentsFound ? FColor::Red : FColor::White) : (noComponentsFound ? FColor::Black : FColor(128, 128, 128));
-    DrawDebugLine(GetWorld(), start, end, color, true, 5.0f, 0, 1.0f);
+    // // Draw a line from start to end for debugging purposes
+    // // white: good, grey: bad (some missing components), black: bad (no components found), red: good (forward trace missed)
+    // bool allComponentsFound = true, noComponentsFound = true;
+    // for (const FHitResult& hit : forwardHits) { hit.GetComponent() == nullptr ? allComponentsFound = false : noComponentsFound = false; }
+    // auto& color = allComponentsFound ? (noComponentsFound ? FColor::Red : FColor::White) : (noComponentsFound ? FColor::Black : FColor(128, 128, 128));
+    // DrawDebugLine(GetWorld(), start, end, color, true, 5.0f, 0, 1.0f);
 
     // If the trace missed, return here.
     if (!forwardTrace) {
