@@ -5,7 +5,7 @@ import nrrd
 dir = "python/dump/"
 
 data = np.zeros((1, 2, 3, 4))
-filename = "lgemri.nrrd"
+filename = "test1_vol.nrrd"
 filepath = dir + filename
 
 # write
