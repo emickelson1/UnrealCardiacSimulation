@@ -5,6 +5,7 @@
 #include <iostream>
 #include <filesystem>
 
+
 bool UConvertToNRRD::MakeNRRDs(
     const TArray<uint8>& volumes,
     const TArray<uint8>& segmentations,
@@ -20,6 +21,7 @@ bool UConvertToNRRD::MakeNRRDs(
     const float spacingZ
 )
 {
+    UE_LOG(LogTemp, Warning, TEXT("Called MakeNRRDs with dataset: %s, name: %s"), *dataset, *name);
     return (
         MakeVolume(volumes, dataset, name, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ) 
         && MakeSegmentation(segmentations, dataset, name, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ)
@@ -61,12 +63,20 @@ bool UConvertToNRRD::MakeVolume(
     std::string nrrdHeader = std::string(TCHAR_TO_UTF8(*nrrdHeaderFString));
 
     // Make filepath
-    FString rootPath = UTF8_TO_TCHAR(std::filesystem::path(TCHAR_TO_UTF8(*FPaths::GetProjectFilePath())).parent_path().parent_path().string().c_str());
-    FString filePath = FString::Printf(TEXT("%s/data/unprocessed/%s/%s_vol.nrrd"), *rootPath, *dataset, *name);
+    FString contentDirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());  // https://forums.unrealengine.com/t/fpaths-gamecontentdir-alternative-in-unreal-engine-5/621958/2
+    FString rootPath = contentDirectoryPath.Replace(TEXT("/simulation/Content"), TEXT(""));         // should be .../cardiac
+    FString filePath = FString::Printf(TEXT("%sdata/unprocessed/%s/%s_vol.nrrd"), *rootPath, *dataset, *name);
     std::string stdFilePath(TCHAR_TO_UTF8(*filePath));
+
+    UE_LOG(LogTemp, Warning, TEXT("content: %s\nroot: %s\nfile: %s\n\n"), *contentDirectoryPath, *rootPath, *filePath);
 
     // Write data to file
     std::ofstream stream;
+    // Ensure the directory exists before opening the file
+    std::filesystem::path dirPath = std::filesystem::path(stdFilePath).parent_path();
+    if (!std::filesystem::exists(dirPath)) {
+        std::filesystem::create_directories(dirPath);
+    }
     stream.open(stdFilePath, std::ofstream::trunc | std::ofstream::binary);
     if (!stream){
         UE_LOG(LogTemp, Error, TEXT("Failed to open file for writing: %s"), *filePath);
@@ -154,14 +164,21 @@ bool UConvertToNRRD::MakeSegmentation(
     std::string nrrdHeader = std::string(TCHAR_TO_UTF8(*nrrdHeaderFString));
 
     // Make filepath
-    FString rootPath = UTF8_TO_TCHAR(std::filesystem::path(TCHAR_TO_UTF8(*FPaths::GetProjectFilePath())).parent_path().parent_path().string().c_str());
-    FString filePath = FString::Printf(TEXT("%s/data/unprocessed/%s/%s_seg.nrrd"), *rootPath, *dataset, *name);
+    FString contentDirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());  // https://forums.unrealengine.com/t/fpaths-gamecontentdir-alternative-in-unreal-engine-5/621958/2
+    FString rootPath = contentDirectoryPath.Replace(TEXT("/simulation/Content"), TEXT(""));         // should be .../cardiac
+    FString filePath = FString::Printf(TEXT("%sdata/unprocessed/%s/%s_seg.nrrd"), *rootPath, *dataset, *name);
     std::string stdFilePath(TCHAR_TO_UTF8(*filePath));
 
-    UE_LOG(LogTemp, Warning, TEXT("Output Path: %s"), *filePath);
+
+    UE_LOG(LogTemp, Warning, TEXT("content: %s\nroot: %s\nfile: %s\n\n"), *contentDirectoryPath, *rootPath, *filePath);
 
     // Write data to file
     std::ofstream stream;
+    // Ensure the directory exists before opening the file
+    std::filesystem::path dirPath = std::filesystem::path(stdFilePath).parent_path();
+    if (!std::filesystem::exists(dirPath)) {
+        std::filesystem::create_directories(dirPath);
+    }
     stream.open(stdFilePath, std::ofstream::trunc | std::ofstream::binary);
     if (!stream){
         UE_LOG(LogTemp, Error, TEXT("Failed to open file for writing: %s"), *filePath);
