@@ -93,6 +93,7 @@ launch_ue5.sh
 
 # Python virtual environment
 python/.venv/
+python/__pycache__/
 
 # Data directory
 data/processed/*
