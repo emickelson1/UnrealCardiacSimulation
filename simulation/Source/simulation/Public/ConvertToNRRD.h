@@ -19,8 +19,8 @@ public:
 	bool MakeNRRDs(
 		const TArray<uint8>& volumes,
 		const TArray<uint8>& segmentations,
-		const FDirectoryPath& saveDirectory,
-		const FString& fileName,
+		const FString& dataset,
+		const FString& name,
 		const FString& description,
 		const int32 timeSteps,
 		const int32 sliceX,
@@ -34,8 +34,8 @@ public:
 private:
 	bool MakeVolume(
 		const TArray<uint8>& volumes,
-		const FDirectoryPath& saveDirectory,
-		const FString& fileName,
+		const FString& dataset,
+		const FString& name,
 		const FString& description,
 		const int32 timeSteps,
 		const int32 countX,
@@ -47,8 +47,8 @@ private:
 	);
 	bool MakeSegmentation(
 		const TArray<uint8>& segmentations,
-		const FDirectoryPath& saveDirectory,
-		const FString& fileName,
+		const FString& dataset,
+		const FString& name,
 		const FString& description,
 		const int32 timeSteps,
 		const int32 countX,

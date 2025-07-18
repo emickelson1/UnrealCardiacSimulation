@@ -1,18 +1,25 @@
 import torch
 import numpy as np
 import nrrd
+import glob
+from pathlib import Path
 
-dir = "python/dump/"
+unprocessed_data_dir = f"{Path("./main.py").parent.absolute()}/data/unprocessed"
+dataset_name = input("Enter the dataset name: ")
+seg_paths = glob.glob(f"{unprocessed_data_dir}/{dataset_name}/*_seg.nrrd")
+vol_paths = [path.replace("_seg.nrrd", "_vol.nrrd") for path in seg_paths]
 
-data = np.zeros((1, 2, 3, 4))
-filename = "test1_vol.nrrd"
-filepath = dir + filename
+for i in range(0, len(seg_paths)):
+    print(f"seg: {seg_paths[i]}\nvol: {vol_paths[i]}\n")
 
-# write
-# nrrd.write(filepath, data)
+seg_data = [nrrd.read_data(path) for path in seg_paths]
+vol_data = [nrrd.read_data(path) for path in vol_paths]
 
-readdata, header = nrrd.read(filepath)
-print(readdata.shape)
-print(header)
+for data in seg_data:
+    print(data.shape)
 
-print(set(readdata.flatten()))
+# readdata, header = nrrd.read(filepath)
+# print(readdata.shape)
+# print(header)
+
+# print(set(readdata.flatten()))

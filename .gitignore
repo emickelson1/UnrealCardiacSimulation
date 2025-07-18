@@ -94,5 +94,6 @@ launch_ue5.sh
 # Python virtual environment
 python/.venv/
 
-# Data for testing
-python/dump/
+# Data directory
+data/processed/*
+data/unprocessed/*

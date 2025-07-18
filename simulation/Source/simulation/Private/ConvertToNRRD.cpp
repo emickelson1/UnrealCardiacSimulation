@@ -3,12 +3,13 @@
 #include "ConvertToNRRD.h"
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 bool UConvertToNRRD::MakeNRRDs(
     const TArray<uint8>& volumes,
     const TArray<uint8>& segmentations,
-    const FDirectoryPath& saveDirectory,
-    const FString& fileName,
+    const FString& dataset,
+    const FString& name,
     const FString& description,
     const int32 timeSteps,
     const int32 countX,
@@ -20,16 +21,15 @@ bool UConvertToNRRD::MakeNRRDs(
 )
 {
     return (
-        MakeVolume(volumes, saveDirectory, fileName, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ) 
-        &&
-        MakeSegmentation(segmentations, saveDirectory, fileName, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ)
+        MakeVolume(volumes, dataset, name, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ) 
+        && MakeSegmentation(segmentations, dataset, name, description, timeSteps, countX, countY, countZ, spacingX, spacingY, spacingZ)
     );
 }
 
 bool UConvertToNRRD::MakeVolume(
     const TArray<uint8>& volumes,
-    const FDirectoryPath& saveDirectory,
-    const FString& fileName,
+    const FString& dataset,
+    const FString& name,
     const FString& description,
     const int32 timeSteps,
     const int32 countX,
@@ -61,7 +61,8 @@ bool UConvertToNRRD::MakeVolume(
     std::string nrrdHeader = std::string(TCHAR_TO_UTF8(*nrrdHeaderFString));
 
     // Make filepath
-    FString filePath = saveDirectory.Path + "/" + fileName + "_vol.nrrd";
+    FString rootPath = UTF8_TO_TCHAR(std::filesystem::path(TCHAR_TO_UTF8(*FPaths::GetProjectFilePath())).parent_path().parent_path().string().c_str());
+    FString filePath = FString::Printf(TEXT("%s/data/unprocessed/%s/%s_vol.nrrd"), *rootPath, *dataset, *name);
     std::string stdFilePath(TCHAR_TO_UTF8(*filePath));
 
     // Write data to file
@@ -80,8 +81,8 @@ bool UConvertToNRRD::MakeVolume(
 
 bool UConvertToNRRD::MakeSegmentation(
     const TArray<uint8>& segmentations,
-    const FDirectoryPath& saveDirectory,
-    const FString& fileName,
+    const FString& dataset,
+    const FString& name,
     const FString& description,
     const int32 timeSteps,
     const int32 countX,
@@ -153,8 +154,11 @@ bool UConvertToNRRD::MakeSegmentation(
     std::string nrrdHeader = std::string(TCHAR_TO_UTF8(*nrrdHeaderFString));
 
     // Make filepath
-    FString filePath = saveDirectory.Path + "/" + fileName + "_seg.nrrd";
+    FString rootPath = UTF8_TO_TCHAR(std::filesystem::path(TCHAR_TO_UTF8(*FPaths::GetProjectFilePath())).parent_path().parent_path().string().c_str());
+    FString filePath = FString::Printf(TEXT("%s/data/unprocessed/%s/%s_seg.nrrd"), *rootPath, *dataset, *name);
     std::string stdFilePath(TCHAR_TO_UTF8(*filePath));
+
+    UE_LOG(LogTemp, Warning, TEXT("Output Path: %s"), *filePath);
 
     // Write data to file
     std::ofstream stream;
