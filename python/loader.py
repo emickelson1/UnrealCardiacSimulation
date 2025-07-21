@@ -11,7 +11,7 @@ class DatasetError(Exception):
     pass
 
 
-def load_data_as_np(active_datasets):
+def load_data_as_np(active_datasets) -> list[tuple]:
     # Raise exception if no datasets are provided.
     if len(active_datasets) == 0:
         raise DatasetError("No datasets provided")
@@ -29,7 +29,7 @@ def load_data_as_np(active_datasets):
     data = [(nrrd.read(path)[0], nrrd.read(path.replace("_vol", "_seg"))[0]) for path in paths]
     
     # Shuffle tuples
-    data = random.shuffle(data)
+    random.shuffle(data)
 
     # Return the data as tuples (volumes, segmentations)
     return data
@@ -39,7 +39,8 @@ def load_data_as_tensors(active_datasets,
                          split=[1.0, 0.0, 0.0],    # train, validation, test
                          reorder=(3, 2, 1, 0)):
     # Load nrrd files
-    volumes, labels = load_data_as_np(active_datasets)
+    data = load_data_as_np(active_datasets)
+    volumes, labels = [data_i[0] for data_i in data], [data_i[1] for data_i in data]
 
     # Permute data and convert to tensor
     volumes = [torch.tensor(volume).permute(reorder) for volume in volumes]
