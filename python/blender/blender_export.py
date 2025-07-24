@@ -77,25 +77,28 @@ def _export_abc(abs_dir: str, filename:str) -> bool:
         else:
             print(f"Could not find armature '{armature_name}'")
 
-        # Select custom parameters empty if it exists
-        if "Heart Control" in bpy.data.objects:
-            bpy.data.objects["Heart Control"].select_set(True)
-        else:
-            print(f"Could not find empty 'Heart Control'")
+        # # Select custom parameters empty if it exists
+        # if "Heart Control" in bpy.data.objects:
+        #     bpy.data.objects["Heart Control"].select_set(True)
+        # else:
+        #     print(f"Could not find empty 'Heart Control'")
 
         # Export
         filepath = os.path.join(abs_dir, f"{filename}_{obj.name.strip('SK_')}.abc")
-        bpy.ops.wm.alembic_export(filepath=filepath,
-                                selected=True,
-                                flatten=True,
-                                apply_subdiv=True,
-                                use_instancing=False,
-                                triangulate=True,
-                                quad_method='BEAUTY',
-                                ngon_method='BEAUTY',
-                                export_hair=False,
-                                export_particles=False,
-                                )
+        bpy.ops.wm.alembic_export(
+            filepath=filepath,
+            selected=True,
+            flatten=True,
+            apply_subdiv=False,
+            use_instancing=False,
+            triangulate=True,
+            quad_method='BEAUTY',
+            ngon_method='BEAUTY',
+            export_hair=False,
+            export_particles=False,
+            evaluation_mode='VIEWPORT',
+
+        )
         
         # Deselect all
         bpy.ops.object.select_all(action='DESELECT')
@@ -108,4 +111,4 @@ def _export_abc(abs_dir: str, filename:str) -> bool:
 
 
 
-export_heart("assets/data", "test_1", "abc")
+export_heart("assets/temp", "test_1", "abc")
