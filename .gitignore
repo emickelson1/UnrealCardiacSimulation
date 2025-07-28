@@ -98,3 +98,7 @@ python/__pycache__/
 # Data directory
 data/processed/*
 data/unprocessed/*
+
+# Blender Bioxel Nodes plugin cache files
+*.vdb
+blender/bioxel/*
