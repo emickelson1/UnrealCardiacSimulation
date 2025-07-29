@@ -12,17 +12,20 @@ LEFT_VENTRICLE_INDEX = 4
 RIGHT_VENTRICLE_INDEX = 5
 LEFT_ATRIUM_INDEX = 6
 RIGHT_ATRIUM_INDEX = 7
+AORTA_INDEX = 8
+PULMONARY_ARTERY_INDEX = 9
+SUPERIOR_VENA_CAVA_INDEX = 10
 
 # Map the names of each organ to their index in the spreadsheet, if available
 ORGAN_PAIRS = {
-    "m":    LEFT_VENTRICLE_INDEX,   # myocardium            myocardium deforms with LV
-    "lv":   LEFT_VENTRICLE_INDEX,   # left ventricle
-    "rv":   RIGHT_VENTRICLE_INDEX,  # right ventricle
-    "la":   LEFT_ATRIUM_INDEX,      # left atrium
-    "ra":   RIGHT_ATRIUM_INDEX,     # right atrium
-    "svc":  -1,                     # superior vena cava    use -1 as temp value
-    "pa":   -1,                     # pulmonary artery      use -1 as temp value
-    "a":    -1                      # aorta                 use -1 as temp value
+    "m":    LEFT_VENTRICLE_INDEX,       # myocardium            myocardium deforms with LV
+    "lv":   LEFT_VENTRICLE_INDEX,       # left ventricle
+    "rv":   RIGHT_VENTRICLE_INDEX,      # right ventricle
+    "la":   LEFT_ATRIUM_INDEX,          # left atrium
+    "ra":   RIGHT_ATRIUM_INDEX,         # right atrium
+    "a":    AORTA_INDEX,                # aorta
+    "pa":   PULMONARY_ARTERY_INDEX,     # pulmonary artery
+    "svc":  SUPERIOR_VENA_CAVA_INDEX    # superior vena cava
 }
 
 # Store the results of the last data query
@@ -164,9 +167,20 @@ def get_custom_properties() -> bpy.types.Object:
 
     # If the empty properties object does not exist, initialize it
     if not obj:
+        # Add the empty object
         bpy.ops.object.empty_add(type='PLAIN_AXES', align='WORLD', location=(0, 0, 0))
         obj = bpy.context.object
         obj.name = custom_prop_name
+
+        # Link to root scene collection and unlink from current collection if necessary
+        root_collection = bpy.context.scene.collection
+        if obj.name not in root_collection.objects:
+            root_collection.objects.link(obj)
+
+        # Unlink from all other collections except root
+        for coll in obj.users_collection:
+            if coll != root_collection:
+                coll.objects.unlink(obj)
 
         # Initialize custom properties
         for organ_name in ORGAN_PAIRS:
@@ -215,7 +229,6 @@ def _insert_keyframe(organ_name: str, frame: int, value: float) -> bool:
 
 
 def _init_driver(pose_bone: bpy.types.PoseBone, data_path: str, organ_name: str):
-    # Expression in v1 was "x*u*(pow(y, 1/3))/5 + (1-u)". No idea why I cube rooted the volume.
     # Init driver
     for i in range(3):
         d = pose_bone.id_data.driver_add(data_path, i)      # i is the index for x, y, z scale
