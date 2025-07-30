@@ -1,6 +1,5 @@
 import bpy
 import os
-import sys
 
 # Install tqdm in the python blender environment
 import subprocess
@@ -9,17 +8,14 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "tqdm"])
 from tqdm import tqdm
 
 
+PROJECT_DIR_NAME = "cardiac"
+
+
 def export_heart(rel_dir: str, filename: str, export_method: str) -> bool:
     """Handle the exporting of the heart in a UE5-compatible format."""
-    # Name of the project root dir
-    project_dir_name = "cardiac"
 
     # Resolve output dir
-    blend_path = bpy.data.filepath
-    proj_dir = os.path.dirname(blend_path)
-    while (not proj_dir.endswith(project_dir_name)):
-        proj_dir = os.path.dirname(proj_dir)
-    abs_dir = os.path.join(proj_dir, rel_dir)
+    abs_dir = build_path(rel_dir)
 
     # Ensure the export path exists
     if not os.path.exists(abs_dir):
@@ -110,5 +106,26 @@ def _export_abc(abs_dir: str, filename:str) -> bool:
     return True
 
 
+def build_path(rel_dir: str = "cardiac") -> str:
+    """Make a path to a directory within the project structure."""
+    global PROJECT_DIR_NAME
 
-export_heart("assets/temp", "test_1", "abc")
+    # In case rel_dir starts or ends with a slash, remove it
+    rel_dir = rel_dir.strip("/")
+
+    # Get blend file path
+    blend_path = bpy.data.filepath
+
+    # Find parent of current directory until project root is reached
+    proj_dir = os.path.dirname(blend_path)
+    while (not proj_dir.endswith(PROJECT_DIR_NAME)): 
+        proj_dir = os.path.dirname(proj_dir)
+
+    # Append relative path of anim_data.csv to get data path
+    data_path = os.path.join(proj_dir, rel_dir)
+
+    return data_path
+
+
+if __name__ == "__main__":
+    export_heart("assets/temp", "test_1", "abc")
