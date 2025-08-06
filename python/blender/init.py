@@ -52,7 +52,8 @@ def load_and_register_scripts():
         "init_weights",
         "init_armature",
         "init_anim",
-        "export"
+        "export",
+        "ui"
     ]
 
     for script_name in scripts:
@@ -91,5 +92,5 @@ if __name__ == "__main__":
     init_anim.main()
     print("[init_anim] Initialization complete.")
 
-    init_weights.main()
+    init_weights.main()     # armature creation breaks weights sometimes, don't know why
     print("[init_weights] Re-initialization complete.")

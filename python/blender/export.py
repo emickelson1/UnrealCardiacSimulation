@@ -1,5 +1,7 @@
 import bpy
 import os
+import init
+import sys
 
 # Install tqdm in the python blender environment
 import subprocess
@@ -11,38 +13,38 @@ from tqdm import tqdm
 PROJECT_DIR_NAME = "cardiac"
 
 
-def export_heart(rel_dir: str, filename: str, export_method: str) -> bool:
+def export_heart(rel_dir: str, filename: str, export_format: str) -> bool:
     """Handle the exporting of the heart in a UE5-compatible format."""
 
     # Resolve output dir
-    abs_dir = build_path(rel_dir)
+    abs_dir = init.build_path(rel_dir)
 
     # Ensure the export path exists
     if not os.path.exists(abs_dir):
         os.makedirs(abs_dir)
 
     # Handle exporting
-    if "fbx" in export_method.lower():
+    if "fbx" in export_format.lower():
         # Call fbx export method
         print(f"Trying to export file to {abs_dir}/{filename}.fbx")
         success = _export_fbx(abs_dir, filename)
         return success
-    elif "abc" in export_method.lower() or "alembic" in export_method.lower():
+    elif "abc" in export_format.lower() or "alembic" in export_format.lower():
         # Call abc export method
         print(f"Trying to export file to {abs_dir}/{filename}.abc")
         success = _export_abc(abs_dir, filename)
         return success
     else:
-        print(f"Error: Invalid export method declaration '{export_method}'")
+        print(f"Error: Invalid export method declaration '{export_format}'")
 
 
 def _export_fbx(abs_dir: str, filename:str) -> bool:
     bpy.ops.object.select_all(action='DESELECT')
-    bpy.ops.object.select_by_type(type='MESH', extend='True')
-    bpy.ops.object.select_by_type(type='ARMATURE', extend='True')
-    bpy.ops.object.select_by_type(type='EMPTY', extend='True')
+    bpy.ops.object.select_by_type(type='MESH', extend=True)
+    bpy.ops.object.select_by_type(type='ARMATURE', extend=True)
+    bpy.ops.object.select_by_type(type='EMPTY', extend=True)
 
-    filepath = os.path.join(abs_dir, filename, ".fbx")
+    filepath = os.path.join(abs_dir, f"{filename}.fbx")
     bpy.ops.export_scene.fbx(filepath=filepath, 
                              use_selection=True, 
                              path_mode="ABSOLUTE",
@@ -104,27 +106,6 @@ def _export_abc(abs_dir: str, filename:str) -> bool:
     
     print("Export complete")
     return True
-
-
-def build_path(rel_dir: str = "cardiac") -> str:
-    """Make a path to a directory within the project structure."""
-    global PROJECT_DIR_NAME
-
-    # In case rel_dir starts or ends with a slash, remove it
-    rel_dir = rel_dir.strip("/")
-
-    # Get blend file path
-    blend_path = bpy.data.filepath
-
-    # Find parent of current directory until project root is reached
-    proj_dir = os.path.dirname(blend_path)
-    while (not proj_dir.endswith(PROJECT_DIR_NAME)): 
-        proj_dir = os.path.dirname(proj_dir)
-
-    # Append relative path of anim_data.csv to get data path
-    data_path = os.path.join(proj_dir, rel_dir)
-
-    return data_path
 
 
 if __name__ == "__main__":
