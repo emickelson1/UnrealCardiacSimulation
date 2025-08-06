@@ -1,20 +1,9 @@
 import bpy
 import os
 
+import init
 
-# Map the names of each organ to their index in the spreadsheet, if available
-HEART_COMPONENTS = {
-    "m",
-    "lv",
-    "rv",
-    "la",
-    "ra",
-    "a",
-    "pa",
-    "svc"
-}
 SOURCE_ROOT_COLLECTION = "source"       # the name of the root collection in the .blend file we are taking weights from
-PROJECT_DIR_NAME = "cardiac"
 
 
 def main():
@@ -27,10 +16,10 @@ def main():
 
 def transfer_weights_from_source(rel_path: str) -> bool:
     """Append the weights source object from a path relative to the project root."""
-    global SOURCE_ROOT_COLLECTION, HEART_COMPONENTS
+    global SOURCE_ROOT_COLLECTION
 
     # Get source .blend file path
-    source_path = build_path(rel_path)
+    source_path = init.build_path(rel_path)
     if not source_path:
         return False
 
@@ -44,7 +33,7 @@ def transfer_weights_from_source(rel_path: str) -> bool:
         bpy.context.scene.collection.children.link(root_collection)
 
     # Loop through component collections
-    obj_names = [f"{component}.001" for component in HEART_COMPONENTS]
+    obj_names = [f"{component}.001" for component in init.HEART_COMPONENTS]
     if len(obj_names) == 0:
         print("Warning: No components found in the source collection.")
         return False
@@ -103,27 +92,6 @@ def transfer_weights(source: bpy.types.Object, target: bpy.types.Object) -> bool
     target.vertex_groups[-1].name=f"{target.name}_bone"
 
     return True
-
-
-def build_path(rel_dir: str = "cardiac") -> str:
-    """Make a path to a directory within the project structure."""
-    global PROJECT_DIR_NAME
-
-    # In case rel_dir starts or ends with a slash, remove it
-    rel_dir = rel_dir.strip("/")
-
-    # Get blend file path
-    blend_path = bpy.data.filepath
-
-    # Find parent of current directory until project root is reached
-    proj_dir = os.path.dirname(blend_path)
-    while (not proj_dir.endswith(PROJECT_DIR_NAME)): 
-        proj_dir = os.path.dirname(proj_dir)
-
-    # Append relative path of anim_data.csv to get data path
-    data_path = os.path.join(proj_dir, rel_dir)
-
-    return data_path
 
 
 def center_geometry():

@@ -1,17 +1,7 @@
 import bpy
 import mathutils
 
-# Map the names of each organ to their index in the spreadsheet, if available
-HEART_COMPONENTS = {
-    "m",
-    "lv",
-    "rv",
-    "la",
-    "ra",
-    "a",
-    "pa",
-    "svc"
-}
+import init
 
 # The collection where armatures will be stored
 ARMATURE_COLLECTION_NAME = "armature"
@@ -19,13 +9,10 @@ ARMATURE_COLLECTION_NAME = "armature"
 # Scale down the bone size for clearer visuals
 BONE_APPEARANCE_SCALE = .5
 
-# Custom properties
-CUSTOM_PROPERTIES_EMPTY = "HeartControl"
-
 
 def main():
     """Create bones and armatures for meshes in the scene, then link to the animation drivers."""
-    global HEART_COMPONENTS, ARMATURE_COLLECTION_NAME, CUSTOM_PROPERTIES_EMPTY
+    global ARMATURE_COLLECTION_NAME
 
     # Ensure armature collection exists
     if not bpy.data.collections.get(ARMATURE_COLLECTION_NAME):
@@ -33,7 +20,7 @@ def main():
         bpy.context.scene.collection.children.link(armature_collection)
 
     # Handle armature for each heart component
-    for component in HEART_COMPONENTS:
+    for component in init.HEART_COMPONENTS:
         # Select component
         obj = bpy.data.objects.get(component)
         if not obj:

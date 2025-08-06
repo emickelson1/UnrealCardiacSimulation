@@ -3,6 +3,8 @@ import os
 import csv
 import numpy as np
 
+import init
+
 # Indices for parsing spreadsheet
 PHASE_INDEX = 0
 DURATION_INDEX = 1
@@ -27,10 +29,6 @@ COMPONENT_PAIRS = {
     "pa":   PULMONARY_ARTERY_INDEX,     # pulmonary artery
     "svc":  SUPERIOR_VENA_CAVA_INDEX    # superior vena cava
 }
-
-# Constant names
-CUSTOM_PROPERTIES_EMPTY = "HeartControl"
-PROJECT_DIR_NAME = "cardiac"
 
 # Store the results of the last data query
 loaded_data = None
@@ -57,7 +55,7 @@ def load_data() -> bool:
     global loaded_data, frame_count, frame_rate
 
     # Resolve data path
-    data_path = build_path("assets/anim_data.csv")
+    data_path = init.build_path("assets/anim_data.csv")
 
     # Verify data path exists
     if not os.path.exists(data_path):
@@ -106,7 +104,7 @@ def load_data() -> bool:
 
 def insert_keyframes(req_metric: str, req_values: list) -> bool:
     """Given a metric ('frame' or 'phase'), and a list of discrete values, insert keyframes for the animation of each component."""
-    global loaded_data
+    global loaded_data, COMPONENT_PAIRS
 
     # Ensure data is loaded
     if loaded_data is None:
@@ -157,17 +155,17 @@ def insert_keyframes(req_metric: str, req_values: list) -> bool:
 
 def get_custom_properties() -> bpy.types.Object:
     """If the custom properties object is missing, create it."""
-    global CUSTOM_PROPERTIES_EMPTY
+    global COMPONENT_PAIRS
 
     # Try to find the custom properties object
-    obj = bpy.data.objects.get(CUSTOM_PROPERTIES_EMPTY)
+    obj = bpy.data.objects.get(init.CUSTOM_PROPERTIES_EMPTY)
 
     # If the empty properties object does not exist, initialize it
     if not obj:
         # Add the empty object
         bpy.ops.object.empty_add(type='PLAIN_AXES', align='WORLD', location=(0, 0, 0))
         obj = bpy.context.object
-        obj.name = CUSTOM_PROPERTIES_EMPTY
+        obj.name = init.CUSTOM_PROPERTIES_EMPTY
 
         # Link to root scene collection and unlink from current collection if necessary
         root_collection = bpy.context.scene.collection
@@ -226,6 +224,9 @@ def _insert_keyframe(component_name: str, frame: int, value: float) -> bool:
 
 
 def _init_driver(pose_bone: bpy.types.PoseBone, data_path: str, component_name: str):
+    """Create drivers on the given pose bone"""
+    global COMPONENT_PAIRS
+
     # Init driver
     for i in range(3):
         d = pose_bone.id_data.driver_add(data_path, i)      # i is the index for x, y, z scale
@@ -233,7 +234,7 @@ def _init_driver(pose_bone: bpy.types.PoseBone, data_path: str, component_name: 
         # Make first variable (Volume)
         var1 = d.driver.variables.new()
         var1.name = "volume"
-        var1.targets[0].id = bpy.data.objects[CUSTOM_PROPERTIES_EMPTY]
+        var1.targets[0].id = bpy.data.objects[init.CUSTOM_PROPERTIES_EMPTY]
         var1.targets[0].data_path = f'["{component_name}"]'
 
         # Get mean volume
@@ -246,27 +247,6 @@ def _init_driver(pose_bone: bpy.types.PoseBone, data_path: str, component_name: 
 def _get_mean_volume(component_index: int) -> float:
     values = [float(row[component_index]) for row in loaded_data]
     return sum(values) / float(len(values))
-
-
-def build_path(rel_dir: str = "cardiac") -> str:
-    """Make a path to a directory within the project structure."""
-    global PROJECT_DIR_NAME
-
-    # In case rel_dir starts or ends with a slash, remove it
-    rel_dir = rel_dir.strip("/")
-
-    # Get blend file path
-    blend_path = bpy.data.filepath
-
-    # Find parent of current directory until project root is reached
-    proj_dir = os.path.dirname(blend_path)
-    while (not proj_dir.endswith(PROJECT_DIR_NAME)): 
-        proj_dir = os.path.dirname(proj_dir)
-
-    # Append relative path of anim_data.csv to get data path
-    data_path = os.path.join(proj_dir, rel_dir)
-
-    return data_path
 
 
 if __name__ == "__main__":
