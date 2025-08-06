@@ -27,25 +27,22 @@ def main():
 
 def transfer_weights_from_source(rel_path: str) -> bool:
     """Append the weights source object from a path relative to the project root."""
+    global SOURCE_ROOT_COLLECTION, HEART_COMPONENTS
 
-    print("1. Get source .blend file path...")
     # Get source .blend file path
     source_path = build_path(rel_path)
     if not source_path:
         return False
 
-    print("2. Load source .blend file...")
     # Load the main collection in the source .blend
     with bpy.data.libraries.load(source_path) as (data_from, data_to):
         data_to.collections.append(SOURCE_ROOT_COLLECTION)
     
-    print("3. Link source collection to the current scene...")
     # Link the collection to the current scene
     root_collection = bpy.data.collections.get(SOURCE_ROOT_COLLECTION)
     if root_collection:
         bpy.context.scene.collection.children.link(root_collection)
 
-    print("4. Transfer weights to target components...")
     # Loop through component collections
     obj_names = [f"{component}.001" for component in HEART_COMPONENTS]
     if len(obj_names) == 0:
@@ -63,7 +60,6 @@ def transfer_weights_from_source(rel_path: str) -> bool:
         else:
             print(f"Warning: Target object '{obj_name.strip('.001')}' not found in the scene.")
     
-    print("5. Cleanup: Remove source collection and objects...")
     # Remove the source collection and objects in it
     delete_hierarchy(SOURCE_ROOT_COLLECTION)
 
@@ -77,7 +73,6 @@ def transfer_weights_from_source(rel_path: str) -> bool:
 def transfer_weights(source: bpy.types.Object, target: bpy.types.Object) -> bool:
     """Transfer the weights from the source object to the target object."""
 
-    print("4d. Check if source and target objects are valid...")
     # Error check
     if not source or not target:
         print("Source or target object is None.")
@@ -90,12 +85,10 @@ def transfer_weights(source: bpy.types.Object, target: bpy.types.Object) -> bool
     # Select source
     source.select_set(True)
 
-    print("4e. Set source as active...")
     # Select target and make active
     target.select_set(True)
     bpy.context.view_layer.objects.active = target
 
-    print("4f. Transfer weights...")
     # Transfer weights
     bpy.ops.object.mode_set(mode='WEIGHT_PAINT')
     bpy.ops.object.data_transfer(
@@ -105,6 +98,9 @@ def transfer_weights(source: bpy.types.Object, target: bpy.types.Object) -> bool
         layers_select_dst='ACTIVE',
         mix_mode='REPLACE'
     )
+
+    # Rename vertex group
+    target.vertex_groups[-1].name=f"{target.name}_bone"
 
     return True
 
@@ -202,7 +198,6 @@ def delete_hierarchy(root_coll):
 
     # Remove the collection itself
     bpy.data.collections.remove(collection)
-    print("Successfully deleted collection and its objects.")
 
 
 if __name__ == "__main__":

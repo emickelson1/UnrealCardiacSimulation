@@ -95,6 +95,10 @@ def load_data() -> bool:
                 anim_data.append(row)
                 continue
 
+    # Update frame constraints for scene
+    bpy.context.scene.frame_start = 0
+    bpy.context.scene.frame_end = frame_count - 1
+
     # Set global variable to the loaded data
     loaded_data = anim_data
     return True
