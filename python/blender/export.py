@@ -94,8 +94,7 @@ def _export_abc(abs_dir: str, filename:str) -> bool:
             ngon_method='BEAUTY',
             export_hair=False,
             export_particles=False,
-            evaluation_mode='VIEWPORT',
-
+            evaluation_mode='VIEWPORT'
         )
         
         # Deselect all

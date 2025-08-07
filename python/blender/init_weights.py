@@ -98,6 +98,7 @@ def center_geometry():
     """Center geometry on the scene origin"""
 
     # Select all meshes in the scene
+    bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_by_type(type='MESH')
 
     # Get selected objects

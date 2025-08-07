@@ -63,10 +63,10 @@ def main():
             armature_mod.use_vertex_groups = True
             armature_mod.use_bone_envelopes = False
 
-            # Assign all vertices in the active vertex group to the bone with full weight
-            vg = obj.vertex_groups.active
-            for v in obj.data.vertices:
-                vg.add([v.index], 1.0, 'REPLACE')
+            # # Assign all vertices in the active vertex group to the bone with full weight
+            # vg = obj.vertex_groups.active
+            # for v in obj.data.vertices:
+            #     vg.add([v.index], 1.0, 'REPLACE')
             # print(f"Assigned bone '{bone.name}' to vertex group '{obj.vertex_groups.active.name}'")
         else:
             print(f"Warning: No vertex group found for component '{component}'. Skipping bone assignment.")

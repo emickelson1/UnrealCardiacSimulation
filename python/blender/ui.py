@@ -1,5 +1,4 @@
 import bpy
-import export
 
 
 bl_info = {
@@ -37,10 +36,12 @@ class CARDIAC_PT_main_panel(bpy.types.Panel):
         layout.prop(mytool, "export_relative_path")
         layout.prop(mytool, "export_name")
         layout.prop(mytool, "export_format")
+        layout.operator("cardiac.zero_weights", text="Zero Weights")
+        layout.operator("cardiac.add_inverse_bones", text="Add Inverse Bones")
         layout.operator("cardiac.export_model", text="Export Model")
 
 
-# Operator for the export button
+# Operator: export
 class CARDIAC_OT_export(bpy.types.Operator):
     bl_label = "Export Model"
     bl_idname = "cardiac.export_model"
@@ -49,14 +50,41 @@ class CARDIAC_OT_export(bpy.types.Operator):
         scene = context.scene
         mytool = scene.my_tool
         print(f"Exporting model to {mytool.export_relative_path}/{mytool.export_name}.{mytool.export_format}")
+        import export
         export.export_heart(str(mytool.export_relative_path), str(mytool.export_name), str(mytool.export_format))
         return {'FINISHED'}
 
 
+# Operator: zero weights
+class CARDIAC_OT_zero_weights(bpy.types.Operator):
+    bl_label = "Zero Weights"
+    bl_idname = "cardiac.zero_weights"
+
+    def execute(self, context):
+        print("Zeroing weights for selected meshes...")
+        import fixups
+        fixups.zero_weights()
+        return {'FINISHED'}
+
+
+# Operator: add inverse bones
+class CARDIAC_OT_add_inverse_bones(bpy.types.Operator):
+    bl_label = "Add Inverse Bones"
+    bl_idname = "cardiac.add_inverse_bones"
+
+    def execute(self, context):
+        print("Adding inverse bones to selected meshes...")
+        import fixups
+        success = fixups.add_inverse_bones()
+        if success:
+            print("Inverse bones added successfully.")
+        else:
+            print("Failed to add inverse bones.")
+        return {'FINISHED'}
 
 
 
-classes = [MyProperties, CARDIAC_PT_main_panel, CARDIAC_OT_export]
+classes = [MyProperties, CARDIAC_PT_main_panel, CARDIAC_OT_export, CARDIAC_OT_zero_weights, CARDIAC_OT_add_inverse_bones]
 
 def register():
     #bpy.app.handlers.frame_change_post.append(frame_change_handler)
