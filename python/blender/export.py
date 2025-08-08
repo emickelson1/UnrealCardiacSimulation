@@ -10,9 +10,6 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "tqdm"])
 from tqdm import tqdm
 
 
-PROJECT_DIR_NAME = "cardiac"
-
-
 def export_heart(rel_dir: str, filename: str, export_format: str) -> bool:
     """Handle the exporting of the heart in a UE5-compatible format."""
 
@@ -46,12 +43,14 @@ def _export_fbx(abs_dir: str, filename:str) -> bool:
 
     filepath = os.path.join(abs_dir, f"{filename}.fbx")
     bpy.ops.export_scene.fbx(filepath=filepath, 
-                             use_selection=True, 
                              path_mode="ABSOLUTE",
-                             object_types={'ARMATURE', 'MESH', 'EMPTY'},
+                             object_types={'ARMATURE', 'MESH'},
                              use_mesh_modifiers=False,
                              mesh_smooth_type='FACE',
-                             add_leaf_bones=False
+                             add_leaf_bones=False,
+                             bake_anim_use_nla_strips=False,
+                             bake_anim_use_all_actions=False,
+                             use_custom_props=True
                              )
 
     print(f"Successfully saved FBX file at \"{filepath}\"")
@@ -108,4 +107,4 @@ def _export_abc(abs_dir: str, filename:str) -> bool:
 
 
 if __name__ == "__main__":
-    export_heart("assets/temp", "test_1", "abc")
+    export_heart("assets/temp", "unnamed_export", "fbx")

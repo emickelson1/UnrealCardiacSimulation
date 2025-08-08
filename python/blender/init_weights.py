@@ -68,6 +68,7 @@ def transfer_weights(source: bpy.types.Object, target: bpy.types.Object) -> bool
         return False
 
     # Reset selection
+    bpy.context.view_layer.objects.active = source
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
 
@@ -97,8 +98,10 @@ def transfer_weights(source: bpy.types.Object, target: bpy.types.Object) -> bool
 def center_geometry():
     """Center geometry on the scene origin"""
 
-    # Select all meshes in the scene
+    # Deselect all meshes in the scene
+    bpy.context.view_layer.objects.active = bpy.context.scene.objects[0]  # select anything to set active to prevent context error on next line
     bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.object.select_by_type(type='MESH')
 
     # Get selected objects

@@ -40,6 +40,9 @@ def main():
     # Load data
     load_data()
 
+    # Set scene framerate
+    bpy.context.scene.render.fps = frame_rate
+
     # Initialize custom properties
     get_custom_properties()
 
@@ -138,6 +141,7 @@ def insert_keyframes(req_metric: str, req_values: list) -> bool:
             x = np.array([float(loaded_data[row][START_FRAME_INDEX]) for row in range(len(loaded_data))])
             y = np.array([float(loaded_data[row][component_column_index]) for row in range(len(loaded_data))])
             polynomial = np.poly1d(np.polyfit(x, y, 3))
+            # print(f"Approximated polynomial for {component_name}: {polynomial}")
 
             # Update the component volume with the approximated volume at the input frame
             for frame in req_values:
@@ -233,7 +237,7 @@ def _init_driver(pose_bone: bpy.types.PoseBone, data_path: str, component_name: 
         
         # Make first variable (Volume)
         var1 = d.driver.variables.new()
-        var1.name = "volume"
+        var1.name = f"{component_name}_volume"
         var1.targets[0].id = bpy.data.objects[init.CUSTOM_PROPERTIES_EMPTY]
         var1.targets[0].data_path = f'["{component_name}"]'
 

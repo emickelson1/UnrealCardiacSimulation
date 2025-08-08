@@ -16,6 +16,7 @@ HEART_COMPONENTS = {
     "pa",
     "svc"
 }
+PROJECT_PATH = ""
 
 def setup_paths() -> str:
     """Set up the base path for the project and add necessary directories to sys.path."""
@@ -27,21 +28,32 @@ def setup_paths() -> str:
 
 def build_path(rel_dir: str) -> str:
     """Make a path to a directory within the project structure."""
-    global PROJECT_DIR_NAME
+    global PROJECT_DIR_NAME, PROJECT_PATH
 
     # In case rel_dir starts or ends with a slash, remove it
     rel_dir = rel_dir.strip("/")
 
-    # Get blend file path
-    blend_path = bpy.data.filepath
+    # Get project path
+    if PROJECT_PATH == "":
+        # Attempt to get path from any loaded text file
+        for text in bpy.data.texts:
+            if text.filepath:
+                script_path = bpy.path.abspath(text.filepath)
+                PROJECT_PATH = os.path.dirname(script_path)
 
-    # Find parent of current directory until project root is reached
-    proj_dir = os.path.dirname(blend_path)
-    while (not proj_dir.endswith(PROJECT_DIR_NAME)): 
-        proj_dir = os.path.dirname(proj_dir)
+                while not PROJECT_PATH.endswith(PROJECT_DIR_NAME):
+                    parent = os.path.dirname(PROJECT_PATH)
+                    if parent == PROJECT_PATH:  # reached root
+                        raise RuntimeError(f"Could not find '{PROJECT_DIR_NAME}' in any parent directory.")
+                    PROJECT_PATH = parent
+                break
+        else:
+            raise RuntimeError("Could not determine script path from bpy.data.texts.")
+
+    print(f"[init_scripts] Project path: {PROJECT_PATH}")
 
     # Append relative path of anim_data.csv to get data path
-    data_path = os.path.join(proj_dir, rel_dir)
+    data_path = os.path.join(PROJECT_PATH, rel_dir)
 
     return data_path
 
@@ -70,10 +82,12 @@ def load_and_register_scripts():
                 module.register()
                 print(f"[init_scripts] Registered: {script_name}")
             else:
-                print(f"[init_scripts] Skipped {script_name} (no register())")
+                print(f"[init_scripts] Registration skipped: {script_name} (no register())")
 
         except Exception as e:
             print(f"[init_scripts] Error loading {script_name}: {e}")
+
+
 
 setup_paths()
 load_and_register_scripts()
@@ -83,6 +97,7 @@ if __name__ == "__main__":
     import init_weights
     import init_armature
     import init_anim   
+    import fixups
 
     init_weights.main()
     print("[init_weights] Initialization complete.")
@@ -92,3 +107,6 @@ if __name__ == "__main__":
 
     init_anim.main()
     print("[init_anim] Initialization complete.")
+
+    fixups.add_inverse_bones()
+    print("[fixups] Add inverse bones complete.")

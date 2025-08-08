@@ -28,6 +28,11 @@ def main():
             continue
         bpy.context.view_layer.objects.active = obj
 
+        # If armature already exists for the component, exit
+        if bpy.data.objects.get(f"{component}_armature"):
+            print(f"Armature for component '{component}' already exists.")
+            continue
+
         # Initialize armature obj
         armature_data = bpy.data.armatures.new(f"{component}_armature_data")
         armature_obj = bpy.data.objects.new(f"{component}_armature", object_data=armature_data)

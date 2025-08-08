@@ -2,7 +2,7 @@ import bpy
 
 
 bl_info = {
-    "name" : "Wheat Generator",
+    "name" : "Heart Model Tools",
     "author" : "Elijah Mickelson",
     "version" : (1, 0, 0),
     "blender" : (4, 4, 3),
@@ -15,8 +15,8 @@ bl_info = {
 
 # Properties for the UI
 class MyProperties(bpy.types.PropertyGroup):
-    export_relative_path: bpy.props.StringProperty(name = "Export Path", description = "Path to export the model to, relative to the project root file", default = "assets/temp", maxlen = 128, subtype = 'DIR_PATH')
-    export_name: bpy.props.StringProperty(name = "Export Name", description = "Name of the exported file (without extension)", default = "heart_model", maxlen = 32, subtype = 'FILE_NAME')
+    export_relative_path: bpy.props.StringProperty(name = "Export Path", description = "Path to export the model to, relative to the project root file", default = "assets/heart_fbx_models", maxlen = 128, subtype = 'DIR_PATH')
+    export_name: bpy.props.StringProperty(name = "Export Name", description = "Name of the exported file (without extension)", default = "", maxlen = 32, subtype = 'FILE_NAME')
     export_format: bpy.props.EnumProperty(name = "Export Format", description = "File format to export the model as", items = [('FBX', "FBX", "Autodesk FBX format"), ('ABC', "ABC", "Alembic ABC format")], default = 'FBX')
 
 
@@ -64,6 +64,7 @@ class CARDIAC_OT_zero_weights(bpy.types.Operator):
         print("Zeroing weights for selected meshes...")
         import fixups
         fixups.zero_weights()
+        print("Zeroing weights for selected meshes complete.")
         return {'FINISHED'}
 
 
