@@ -3,6 +3,8 @@ import os
 import init
 import sys
 
+import fixups
+
 # Install tqdm in the python blender environment
 import subprocess
 subprocess.check_call([sys.executable, "-m", "ensurepip", "--upgrade"])
@@ -12,6 +14,8 @@ from tqdm import tqdm
 
 def export_heart(rel_dir: str, filename: str, export_format: str) -> bool:
     """Handle the exporting of the heart in a UE5-compatible format."""
+    # Ensure the unit scale is correct
+    fixups.correct_scale()
 
     # Resolve output dir
     abs_dir = init.build_path(rel_dir)

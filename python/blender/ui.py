@@ -50,6 +50,7 @@ class CARDIAC_OT_export(bpy.types.Operator):
         scene = context.scene
         mytool = scene.my_tool
         print(f"Exporting model to {mytool.export_relative_path}/{mytool.export_name}.{mytool.export_format}")
+
         import export
         export.export_heart(str(mytool.export_relative_path), str(mytool.export_name), str(mytool.export_format))
         return {'FINISHED'}
@@ -82,6 +83,23 @@ class CARDIAC_OT_add_inverse_bones(bpy.types.Operator):
         else:
             print("Failed to add inverse bones.")
         return {'FINISHED'}
+
+
+# Operator: fix unit scale
+class CARDIAC_OT_fix_unit_scale(bpy.types.Operator):
+    bl_label = "Fix Unit Scale"
+    bl_idname = "cardiac.fix_unit_scale"
+
+    def execute(self, context):
+        print("Fixing unit scale...")
+        import fixups
+        success = fixups.correct_scale()
+        if success:
+            print("Unit scale fixed successfully.")
+        else:
+            print("Failed to fix unit scale.")
+        return {'FINISHED'}
+
 
 
 

@@ -64,8 +64,8 @@ def load_and_register_scripts():
         "init_weights",
         "init_armature",
         "init_anim",
-        "export",
         "fixups",
+        "export",
         "ui"
     ]
 
@@ -88,25 +88,45 @@ def load_and_register_scripts():
             print(f"[init_scripts] Error loading {script_name}: {e}")
 
 
+def get_is_initialized() -> bool:
+    """Check if this script has been run before in this scene."""
+    # Verify that... 
 
-setup_paths()
-load_and_register_scripts()
-print("[init_scripts] Script initialization complete.")
+    # # CUSTOM_PROPERTIES_EMPTY exists (disabled for now for .fbx import-export)
+    # if not bpy.data.objects.get(CUSTOM_PROPERTIES_EMPTY):
+    #     return False
+    
+    # # Each mesh has an armature
+    # if not len(bpy.data.meshes) == len(bpy.data.armatures):
+    #     return False
+
+    # 8 armatures in total
+    if not len(bpy.data.armatures) == len(HEART_COMPONENTS):
+        return False
+
+    return True
 
 if __name__ == "__main__":
+
+    setup_paths()
+    load_and_register_scripts()
+    print("[init_scripts] Script initialization complete.")
+
     import init_weights
     import init_armature
     import init_anim   
     import fixups
 
-    init_weights.main()
-    print("[init_weights] Initialization complete.")
+    # Check if initialization is already needed for the existing mesh
+    if not get_is_initialized():
+        init_weights.main()
+        print("[init_weights] Initialization complete.")
 
-    init_armature.main()
-    print("[init_armature] Initialization complete.")
+        init_armature.main()
+        print("[init_armature] Initialization complete.")
 
-    init_anim.main()
-    print("[init_anim] Initialization complete.")
+        init_anim.main()
+        print("[init_anim] Initialization complete.")
 
-    fixups.add_inverse_bones()
-    print("[fixups] Add inverse bones complete.")
+        fixups.add_inverse_bones()
+        print("[fixups] Add inverse bones complete.")

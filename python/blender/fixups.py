@@ -1,6 +1,6 @@
 import bpy
 import init
-
+import mathutils
 
 # Zero weights among selected meshes
 def zero_weights():
@@ -29,14 +29,18 @@ def add_inverse_bones() -> bool:
             _invert(obj, vg_bone, vg_inverse)
             continue
 
-        # Add a bone to the armature
+        # Add a bone to the armature as a child of the previous bone
         armature = bpy.data.objects.get(f"{component}_armature")
         bpy.context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='EDIT')
         armature_data = armature.data
-        bone = armature_data.edit_bones.new(f"{component}_inverse")
-        bone.head = (0, 0, 5)  # out of the way -- this does not matter since we won't scale the bone
-        bone.tail = (0, 0, 6)
+        main_bone = armature_data.edit_bones[0]
+
+        inverse_bone = armature_data.edit_bones.new(f"{component}_inverse")
+        inverse_bone.head = main_bone.head
+        inverse_bone.tail = main_bone.head + (main_bone.tail - main_bone.head)/2
+        main_bone.parent = inverse_bone
+        
         bpy.ops.object.mode_set(mode='OBJECT')
 
         # Duplicate the <component>_bone vertex group as <component>_inverse, then invert the new group
@@ -66,3 +70,57 @@ def _invert(obj, vg_bone, vg_inverse):
             vg_inverse.add([vertex.index], 1.0 - weight, 'REPLACE')
         except RuntimeError: # vertex not in vertex group
                 pass
+        
+
+def correct_scale():
+    # Read global unit scale
+    unit_scale = bpy.context.scene.unit_settings.scale_length
+
+    # If the scale correction fix has already been applied, return
+    if unit_scale == 0.01:
+        print("Unit scale is already 0.01. Skipping scale correction.")
+        return False
+    
+    # Set unit scale for UE5 compatability
+    bpy.context.scene.unit_settings.scale_length = 0.01
+
+    # Scale meshes and armatures by 100x
+    _scale_all_of_type('MESH', 100.0)
+    _scale_all_of_type('ARMATURE', 100.0)
+
+    return True
+
+
+def _scale_all_of_type(type, scale=100.0):
+    # Reset mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    # Get objs of type
+    objs = [obj for obj in bpy.data.objects if obj.type == type]
+    if not objs:
+        print(f"Error: no objs of type {type}")
+        return
+    for obj in objs: 
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+
+    # Edit objs
+    if type == 'MESH':
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_mode(type="VERT")
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.transform.resize(value=(scale, scale, scale))
+    elif type == 'ARMATURE':
+        # multiply each bone's transform by 100
+        for obj in objs:
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.mode_set(mode='EDIT')
+            armature = bpy.context.object
+            if armature and armature.type == 'ARMATURE' and bpy.context.mode == 'EDIT_ARMATURE':
+                for bone in armature.data.edit_bones:
+                    if bone.select:
+                        bone.head *= 100
+                        bone.tail *= 100
+  
+    # Return to object mode
+    bpy.ops.object.mode_set(mode='OBJECT')
