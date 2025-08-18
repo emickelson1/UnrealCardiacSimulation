@@ -20,6 +20,13 @@ void UMRITraceHandler::MRIScan(
     TArray<uint8>& segmentation
 )
 {
+    // Ensure 'this' is still valid
+    if (!IsValid(this))
+    {
+        UE_LOG(LogTemp, Error, TEXT("MRIScan called on invalid UMRITraceHandler"));
+        return;
+    }
+
     // Initialize increment values
     const float xScale = (maxBounds.X - minBounds.X) / countX;       // X is assigned a scale because it is determined as a function of distance between hits
     const float yIncrement = (maxBounds.Y - minBounds.Y) / countY;
@@ -28,6 +35,7 @@ void UMRITraceHandler::MRIScan(
     // Define slices and segmentation array size
     volume.SetNum(countZ * countY * countX);
     segmentation.SetNum(countZ * countY * countX);
+    UE_LOG(LogTemp, Warning, TEXT("The volume and segmentation consist of %i and %i uint32s, respectively."), volume.Num(), segmentation.Num());
 
     // Initialize line trace parameters
     TArray<FHitResult> forwardHits;
@@ -38,6 +46,25 @@ void UMRITraceHandler::MRIScan(
     const FCollisionQueryParams collisionParams = FCollisionQueryParams(FName(TEXT("MRITrace")), true, nullptr);
     const FCollisionObjectQueryParams queryParams = FCollisionObjectQueryParams(ECC_WorldStatic | ECC_WorldDynamic | ECC_PhysicsBody);
     
+
+    // Check dimensions
+    if (countX <= 0 || countY <= 0 || countZ <= 0)
+    {
+        UE_LOG(LogTemp, Error, TEXT("MRIScan: invalid grid size (%d, %d, %d)"),
+            countX, countY, countZ);
+        return;
+    }
+
+    // Example size validation if you expect preallocated arrays:
+    int64 expectedSize = (int64)countX * countY * countZ;
+    if (volume.Num() < expectedSize || segmentation.Num() < expectedSize)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("MRIScan: arrays too small, expected at least %lld elements"),
+            expectedSize);
+        return;
+    }
+
     // Create each slice by line tracing repetitively
     for (int32 zIndex = 0; zIndex < countZ; ++zIndex)
     {
@@ -52,37 +79,40 @@ void UMRITraceHandler::MRIScan(
                 // Break pair
                 const FHitResult* forwardHit = pair.Key;
                 const FHitResult* backwardHit = pair.Value;
-                
-                // Log hit results
-                // UE_LOG(LogTemp, Log, TEXT("\tPaired forward, backward hits:\n\t\t\t\t[Forward]  %s\n\t\t\t\t[Backward] %s"), *forwardHit->ToString(), *backwardHit->ToString());
-
+            
                 // Fill slice indices between start and end
                 int32 startXIndex = forwardHit->Location.X / xScale;
-                int32 endXIndex = backwardHit != nullptr ? backwardHit->Location.X / xScale : countX;   // If no backward hit, go to the end of the slice
-                
-                // UE_LOG(LogTemp, Log, TEXT("\tstartY, endY = (%d, %d)"), startYIndex, endYIndex);
+                int32 endXIndex = (backwardHit != nullptr) ? backwardHit->Location.X / xScale : countX;   // If no backward hit, go to the end of the slice
+            
                 for (int32 xIndex = startXIndex; xIndex < endXIndex; ++xIndex) {
                     int32 index = (countX * countY * zIndex) + (countY * yIndex) + xIndex;
-                    // UE_LOG(LogTemp, Log, TEXT("\tSet slices[%d] = 255"), index);
                     if (index < volume.Num()) {
-                        if (forwardHit != nullptr && forwardHit->GetComponent() != nullptr) {
+                        if (forwardHit->GetComponent() != nullptr) {
                             UMaterialInterface *materialInterface = forwardHit->GetComponent()->GetMaterial(0);
+                            if (materialInterface == nullptr){
+                                UE_LOG(LogTemp, Warning, TEXT("Material interface is not valid on component"));
+                                continue;
+                            }
                             if (UMaterialInstance *instance = Cast<UMaterialInstance>(materialInterface)) {
                                 // Assign a voxel value based on parameters read from material instance
                                 volume[index] = ComputeVoxelValue(instance, TE, TR, R1, Gd);
-
+                                
                                 // Assign a number based on cardiac chamber name
                                 float segmentationIndexParam;
                                 bool success = instance->GetScalarParameterValue(FName(TEXT("Segmentation Index")), segmentationIndexParam);
                                 segmentation[index] = success ? std::round(segmentationIndexParam): -1;
+                                if (success) {
+                                    UE_LOG(LogTemp, Warning, TEXT("Segmentation index %i: %f"), index, segmentationIndexParam)
+                                } else {
+                                    UE_LOG(LogTemp, Warning, TEXT("Failed to get seg index from material hit on %s"), *materialInterface->GetName());
+                                }   
                             }
                             else {
                                 UE_LOG(LogTemp, Warning, TEXT("Material is not a UMaterialInstance: %s"), *materialInterface->GetName());
                             }
                         } else if (index % 100 == 0){
-                            UE_LOG(LogTemp, Warning, TEXT("%s is null at index %d. Note that only indices divisible by 100 will be logged."), forwardHit == nullptr ? TEXT("Forward hit") : TEXT("Component"), index);
+                            UE_LOG(LogTemp, Warning, TEXT("Component is null at index %d. Note that only indices divisible by 100 will be logged."), index);
                         }
-                        
                     }
                 }
             }
