@@ -51,6 +51,7 @@ simulation/Plugins/**/Binaries/*
 
 # Builds
 simulation/Build/*
+build/Linux/*
 
 # Whitelist PakBlacklist-<BuildConfiguration>.txt files
 !simulation/Build/*/
