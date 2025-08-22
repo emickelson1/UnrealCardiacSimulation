@@ -5,6 +5,8 @@
 #include <map>
 #include "Algo/Reverse.h"
 #include <iostream>
+#include <cmath>
+#include <cstdint>
 
 void UMRITraceHandler::MRIScan(
     const int32 countX,
@@ -98,7 +100,16 @@ void UMRITraceHandler::MRIScan(
                             }
                             if (UMaterialInstance *instance = Cast<UMaterialInstance>(materialInterface)) {
                                 // Assign a voxel value based on parameters read from material instance
-                                volume[index] = ComputeVoxelValue(instance, TE, TR, R1, Gd);
+                                volume[index] = ComputeVoxelValue(
+                                    instance,   // material (T1, T2)    [ms]
+                                    TR,         // TR                   [ms]
+                                    TE,         // TE                   [ms]
+                                    20,         // spin angle           [deg]
+                                    Gd,         // Gd                   
+                                    R1,         // R1                   
+                                    5.0,        // R2                   
+                                    1.0         // M0                   
+                                );
                                 
                                 // Assign a number based on cardiac chamber name
                                 float segmentationIndexParam;
@@ -137,24 +148,67 @@ void UMRITraceHandler::MRIScan(
     }
 }
 
+// uint8 UMRITraceHandler::ComputeVoxelValue(
+//     const UMaterialInstance *material,
+//     const float TE, 
+//     const float TR,
+//     const float R1,
+//     const float Gd
+// ) 
+// {
+//     // Get material T1, T2
+//     float T1, T2;
+//     T1 = material->GetScalarParameterValue(FName(TEXT("T1")), T1);
+//     T2 = material->GetScalarParameterValue(FName(TEXT("T2")), T2);
+
+//     // Apply contrast agent adjustment
+//     T1 = 1 / ((1 / T1) + (Gd * R1));
+
+//     return static_cast<uint8>(255 * (1 - std::exp(-TR / T1)) * (std::exp(-TE / T2)));
+// }
+
+
+// Compute GRE pixel intensity
 uint8 UMRITraceHandler::ComputeVoxelValue(
-    const UMaterialInstance *material,
-    const float TE, 
-    const float TR,
-    const float R1,
-    const float Gd
-) 
+    const UMaterialInstance *material,  // T1, T2 [ms]
+    double TR,              // repetition time [ms]
+    double TE,              // echo time [ms]
+    double alphaDeg,        // flip angle [degrees]
+    double Gd,              // Gadolinium concentration [mM]
+    double R1,              // Gd relaxivity T1 [1/(s*mM)]
+    double R2,              // Gd relaxivity T2 [1/(s*mM)]
+    double M0               // Proton density / scaling
+)
 {
-    // Get material T1, T2
+    // Read T1, T2 from material
     float T1, T2;
-    T1 = material->GetScalarParameterValue(FName(TEXT("T1")), T1);
-    T2 = material->GetScalarParameterValue(FName(TEXT("T2")), T2);
+    material->GetScalarParameterValue(FName(TEXT("T1")), T1);
+    material->GetScalarParameterValue(FName(TEXT("T2")), T2);
+    
+    // Convert relaxivities to ms^-1 units
+    double R1_ms = R1 / 1000.0;
+    double R2_ms = R2 / 1000.0;
 
-    // Apply contrast agent adjustment
-    T1 = 1 / ((1 / T1) + (Gd * R1));
+    // Apply Gd effects
+    double T1a = 1.0 / (1.0 / T1 + R1_ms * Gd);
+    double T2a = 1.0 / (1.0 / T2 + R2_ms * Gd);
 
-    return static_cast<uint8>(255 * (1 - std::exp(-TR / T1)) * (std::exp(-TE / T2)));
+    // Flip angle in radians
+    double alpha = alphaDeg * M_PI / 180.0;
+
+    // Steady-state longitudinal magnetization for spoiled GRE
+    double E1 = std::exp(-TR / T1a);
+    double s = M0 * std::sin(alpha) * (1 - E1) / (1 - E1 * std::cos(alpha));
+
+    // Include T2 decay during TE
+    s *= std::exp(-TE / T2a);
+
+    // Clamp to 0-255
+    s = std::max(0.0, std::min(255.0, s * 255.0));
+
+    return static_cast<uint8>(s);
 }
+
 
 bool UMRITraceHandler::DoLineTrace(
     const FVector& start, 

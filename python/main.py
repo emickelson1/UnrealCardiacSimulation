@@ -1,11 +1,16 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.widgets import Slider, Button
+
 
 import loader
 
-active_datasets = ["22x100"]
+active_datasets = ["test-1x10"]
 split = [1.0, 0.0, 0.0]
+label_cmap = mcolors.ListedColormap(['black', 'red', 'orange', 'blue', 'yellow', 'green', 'pink', 'lime', 'purple'])
+
 
 (train_data, train_labels), (validation_data, validation_labels), (test_data, test_labels) = loader.load_data_as_tensors(active_datasets, split)
 
@@ -16,58 +21,46 @@ for i in range(num_unique_labels):
     print(f"{unique_labels[0][i]}: {unique_labels[1][i]}")
 
 
-# T Z Y X
-
-
-def show_2d(data: list, label: list, scan: int, frame: int, slice: int = 0):
-    """
-    Display a single slice from data and label side by side.
-
-    Parameters:
-        data: list of tensors or arrays [scan][time][slice, x, y]
-        label: list of tensors or arrays [scan][time][slice, x, y]
-        scan: index for scan
-        time: index for time
-        slice: index for slice
-    """
-    data_slice = data[scan][frame][slice].permute(1, 0)  # swap axes
-    label_slice = label[scan][frame][slice].permute(1, 0)
+def show_slice_gui(data, label, scan, time):
+    n_slices = len(data[scan][time])
+    slice_idx = 0
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    plt.subplots_adjust(bottom=0.2)  # space for slider
 
-    fig.suptitle(f"Scan {scan}, Frame {frame}, Slice {slice}")
-
-    axes[0].imshow(data_slice, origin='lower')
+    # Data figure
+    data_slice = data[scan][time][slice_idx].permute(1, 0)
+    im_data = axes[0].imshow(data_slice, origin='lower', cmap='gray')
     axes[0].set_title("Data Slice")
-    
-    axes[1].imshow(label_slice, origin='lower')
+
+    # Label figure
+    label_slice = label[scan][time][slice_idx].permute(1, 0)
+    im_label = axes[1].imshow(label_slice, origin='lower', cmap=label_cmap)
     axes[1].set_title("Label Slice")
-    
+
+    # Title
+    fig.suptitle(f"Scan {scan}, Frame {time}, Slice {slice_idx}")
+
+    # Slider axis
+    ax_slider = plt.axes([0.2, 0.05, 0.6, 0.03])
+    slider = Slider(ax_slider, 'Slice', 0, n_slices - 1, valinit=slice_idx, valstep=1)
+
+    def update(val):
+        slice_idx = int(slider.val)
+        data_slice = data[scan][time][slice_idx].permute(1, 0)
+        label_slice = label[scan][time][slice_idx].permute(1, 0)
+
+        # Update images
+        im_data.set_data(data_slice)
+        im_data.set_clim(vmin=data_slice.min(), vmax=data_slice.max())  # dynamic normalization
+        im_label.set_data(label_slice)
+        im_label.set_clim(vmin=label_slice.min(), vmax=label_slice.max())
+
+        fig.suptitle(f"Scan {scan}, Frame {time}, Slice {slice_idx}")
+        fig.canvas.draw_idle()
+
+    slider.on_changed(update)
     plt.show()
 
 
-# Example of cycling through slices interactively
-def cycle_slices(data, label, scan, time):
-    slice = 0
-    n_slices = len(data[scan][time])
-
-    while True:
-        command = input(f"Enter a frame number, (n)ext, (p)revious, or (q)uit: ").strip().lower()
-        #Slice {slice_index+1}/{n_slices}. 
-        
-        if command == 'n':
-            slice = (slice + 1) % n_slices
-        elif command == 'p':
-            slice = (slice - 1) % n_slices
-        elif command == 'q':
-            break
-        else:
-            try:
-                if int(command) >= 0:
-                    slice = int(command) % n_slices
-            except ValueError:
-                print("Invalid command.")
-
-        show_2d(data, label, scan, time, slice)
-
-cycle_slices(train_data, train_labels, 0, 4)
+show_slice_gui(train_data, train_labels, scan=0, time=4)

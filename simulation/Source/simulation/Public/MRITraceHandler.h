@@ -32,11 +32,14 @@ public:
 
 private:
 	uint8 ComputeVoxelValue(
-		const UMaterialInstance *material,
-		const float TE, 
-		const float TR,
-		const float R1,
-		const float Gd
+		const UMaterialInstance *material,  // T1, T2 [s]
+		double TR,              // repetition time [ms]
+		double TE,              // echo time [ms]
+		double alphaDeg = 20,   // flip angle [degrees]
+		double Gd = 0.0,        // Gadolinium concentration [mM]
+		double R1 = 4.5,        // Gd relaxivity T1 [1/(s*mM)]
+		double R2 = 5.0,        // Gd relaxivity T2 [1/(s*mM)]
+		double M0 = 1.0         // Proton density / scaling
 	);
 
 	bool DoLineTrace(
