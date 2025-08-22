@@ -57,8 +57,9 @@ private:
 		FHitResult& outHitResult
 	);
 
-	TArray<TPair<FHitResult*, FHitResult*>> MakePairs(
+	bool MakePairs(
 		const TArray<FHitResult>& forwardHits,
-		const TArray<FHitResult>& reverseHits
+		const TArray<FHitResult>& reverseHits,
+		TArray<TPair<FHitResult*, FHitResult*>>& outHitPairs
 	);
 };

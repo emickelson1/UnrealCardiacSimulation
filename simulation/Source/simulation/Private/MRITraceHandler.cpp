@@ -65,6 +65,9 @@ void UMRITraceHandler::MRIScan(
         return;
     }
 
+    // Target for calls to MakePairs
+    TArray<TPair<FHitResult*, FHitResult*>> outHitPairs;
+
     // Create each slice by line tracing repetitively
     for (int32 zIndex = 0; zIndex < countZ; ++zIndex)
     {
@@ -72,10 +75,10 @@ void UMRITraceHandler::MRIScan(
         for (int32 yIndex = 0; yIndex < countY; ++yIndex) {
             // Do line traces
             DoLineTrace(start, end, 1, queryParams, collisionParams, forwardHits, backwardHits);
-            const TArray<TPair<FHitResult*, FHitResult*>> hitPairs = MakePairs(forwardHits, backwardHits);
+            MakePairs(forwardHits, backwardHits, outHitPairs);
 
             // Iterate through paired hits and fill slices and segmentations
-            for (TPair<FHitResult*, FHitResult*> pair : hitPairs) {
+            for (TPair<FHitResult*, FHitResult*> pair : outHitPairs) {
                 // Break pair
                 const FHitResult* forwardHit = pair.Key;
                 const FHitResult* backwardHit = pair.Value;
@@ -102,10 +105,12 @@ void UMRITraceHandler::MRIScan(
                                 bool success = instance->GetScalarParameterValue(FName(TEXT("Segmentation Index")), segmentationIndexParam);
                                 segmentation[index] = success ? std::round(segmentationIndexParam): -1;
                                 if (success) {
-                                    UE_LOG(LogTemp, Warning, TEXT("Segmentation index %i: %f"), index, segmentationIndexParam)
+                                    // UE_LOG(LogTemp, Warning, TEXT("Segmentation index %i: %f"), index, segmentationIndexParam)
                                 } else {
                                     UE_LOG(LogTemp, Warning, TEXT("Failed to get seg index from material hit on %s"), *materialInterface->GetName());
                                 }   
+                                // delete materialInterface;
+                                // delete instance;
                             }
                             else {
                                 UE_LOG(LogTemp, Warning, TEXT("Material is not a UMaterialInstance: %s"), *materialInterface->GetName());
@@ -190,9 +195,13 @@ bool UMRITraceHandler::DoLineTrace(
     accForwardHits.Append(forwardHits);
     accReverseHits.Append(reverseHits);
 
+    // Target for calls to MakePairs
+    TArray<TPair<FHitResult*, FHitResult*>> outHitPairs;
+    MakePairs(forwardHits, reverseHits, outHitPairs);
+
     // Recursive call to enable multiple collisions on the same component
     for (int32 i = 0; i < substeps; i++){
-        for (TPair<FHitResult*, FHitResult*> pair : MakePairs(forwardHits, reverseHits)) {
+        for (const TPair<FHitResult*, FHitResult*>& pair : outHitPairs) {
             if (pair.Value == nullptr) { break; }
             FVector close = pair.Key->Location;
             FVector far = pair.Value->Location;
@@ -209,6 +218,9 @@ bool UMRITraceHandler::DoLineTrace(
             }
         }
     }
+
+    forwardHits.Empty();
+    reverseHits.Empty();
 
     return true;
 }
@@ -228,11 +240,12 @@ bool UMRITraceHandler::DoAdditionalDetailTrace(
 }
 
 
-TArray<TPair<FHitResult*, FHitResult*>> UMRITraceHandler::MakePairs(
+bool UMRITraceHandler::MakePairs(
     const TArray<FHitResult>& forwardHits,
-    const TArray<FHitResult>& reverseHits
+    const TArray<FHitResult>& reverseHits,
+    TArray<TPair<FHitResult*, FHitResult*>>& outHitPairs
 ){
-    TArray<TPair<FHitResult*, FHitResult*>> hitPairs;
+    outHitPairs.Empty();
 
     for (int32 i = 0; i < forwardHits.Num(); ++i) {
         // Get forward hit
@@ -267,7 +280,7 @@ TArray<TPair<FHitResult*, FHitResult*>> UMRITraceHandler::MakePairs(
 
             // Check if the reverse hit is already paired with another forward hit
             bool alreadyPaired = false;
-            for (TPair<FHitResult*, FHitResult*> pair : hitPairs) {
+            for (TPair<FHitResult*, FHitResult*> pair : outHitPairs) {
                 if (pair.Value == reverseHit) {
                     // If the reverse hit is already paired, skip it
                     alreadyPaired = true;
@@ -284,12 +297,12 @@ TArray<TPair<FHitResult*, FHitResult*>> UMRITraceHandler::MakePairs(
         }
 
         // Add pair to the array
-        hitPairs.Add(TPair<FHitResult*, FHitResult*>(const_cast<FHitResult*>(forwardHit), bestMatch));
+        outHitPairs.Add(TPair<FHitResult*, FHitResult*>(const_cast<FHitResult*>(forwardHit), bestMatch));
     }
 
-    if (hitPairs.Num() != (forwardHits.Num() + reverseHits.Num()) / 2) {
-        UE_LOG(LogTemp, Warning, TEXT("Hit pairs count (%d) does not match total hits count (%d, %d). This may indicate a problem with the line trace."), hitPairs.Num(), forwardHits.Num(), reverseHits.Num());
+    if (outHitPairs.Num() != (forwardHits.Num() + reverseHits.Num()) / 2) {
+        UE_LOG(LogTemp, Warning, TEXT("Hit pairs count (%d) does not match total hits count (%d, %d). This may indicate a problem with the line trace."), outHitPairs.Num(), forwardHits.Num(), reverseHits.Num());
     }
 
-    return hitPairs;
+    return true;
 }
