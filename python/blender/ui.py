@@ -17,7 +17,7 @@ bl_info = {
 class MyProperties(bpy.types.PropertyGroup):
     export_relative_path: bpy.props.StringProperty(name = "Export Path", description = "Path to export the model to, relative to the project root file", default = "assets/heart_fbx_models", maxlen = 128, subtype = 'DIR_PATH')
     export_name: bpy.props.StringProperty(name = "Export Name", description = "Name of the exported file (without extension)", default = "", maxlen = 32, subtype = 'FILE_NAME')
-    export_format: bpy.props.EnumProperty(name = "Export Format", description = "File format to export the model as", items = [('FBX', "FBX", "Autodesk FBX format"), ('ABC', "ABC", "Alembic ABC format")], default = 'FBX')
+    export_format: bpy.props.EnumProperty(name = "Export Format", description = "File format to export the model as", items = [('FBX Discontinuous', "FBX Discontinuous", "Autodesk FBX format (static meshes)"), ('FBX Continuous', "FBX Continuous", "Autodesk FBX format (animated skeletal mesh)"), ('ABC', "ABC", "Alembic ABC format")], default = 'FBX Discontinuous')
 
 
 # Main UI panel for export
