@@ -104,3 +104,4 @@ data/unprocessed/*
 # Blender Bioxel Nodes plugin cache files
 *.vdb
 blender/bioxel/*
+launch_ue5_insights.sh

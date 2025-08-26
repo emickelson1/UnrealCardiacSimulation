@@ -17,7 +17,7 @@ def load_data_as_np(active_datasets) -> list[tuple]:
         raise DatasetError("No datasets provided")
     
     # Get directory that contains datasets by default
-    unprocessed_data_dir = f"{Path("./main.py").parent.absolute()}/data/unprocessed"
+    unprocessed_data_dir = f"{Path('./main.py').parent.absolute()}/data/unprocessed"
     
     # Load all nrrd files in the given datasets
     paths = []

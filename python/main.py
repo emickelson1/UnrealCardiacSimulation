@@ -7,7 +7,7 @@ from matplotlib.widgets import Slider, Button
 
 import loader
 
-active_datasets = ["22x256"]
+active_datasets = ["19x256"]
 split = [1.0, 0.0, 0.0]
 label_cmap = mcolors.ListedColormap(['black', 'red', 'orange', 'blue', 'yellow', 'green', 'pink', 'lime', 'purple'])
 

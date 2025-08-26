@@ -47,7 +47,7 @@ void UMRITraceHandler::MRIScan(
     FVector end = minBounds;
     end.X = maxBounds.X;
     const FCollisionQueryParams collisionParams = FCollisionQueryParams(FName(TEXT("MRITrace")), true, nullptr);
-    const FCollisionObjectQueryParams queryParams = FCollisionObjectQueryParams(ECC_WorldStatic | ECC_WorldDynamic | ECC_PhysicsBody);
+    const FCollisionObjectQueryParams queryParams = FCollisionObjectQueryParams(ECC_WorldStatic | ECC_WorldDynamic | ECC_PhysicsBody | ECC_Visibility);
     
 
     // Check dimensions
