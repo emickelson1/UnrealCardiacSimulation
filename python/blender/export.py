@@ -78,7 +78,7 @@ def _export_fbx_discontinuous(abs_dir: str, filename:str) -> bool:
         objs = [obj for obj in bpy.data.objects if obj.type == 'MESH']
         for obj in objs:
             if "_" in obj.name:
-                obj.name = f"{obj.name.split("_")[0]}_{frame}"
+                obj.name = f"{obj.name.split('_')[0]}_{frame}"
             else:
                 obj.name = f"{obj.name}_{frame}"
 
@@ -90,7 +90,7 @@ def _export_fbx_discontinuous(abs_dir: str, filename:str) -> bool:
         bpy.ops.export_scene.fbx(filepath=filepath, 
                                 path_mode="ABSOLUTE",
                                 object_types={'MESH'},
-                                use_mesh_modifiers=False,
+                                use_mesh_modifiers=True,
                                 mesh_smooth_type='FACE',
                                 add_leaf_bones=False,
                                 bake_anim=False)

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdint>
+#include "Math/UnrealMathUtility.h"
 
 void UMRITraceHandler::MRIScan(
     const int32 countX,
@@ -194,7 +195,7 @@ uint8 UMRITraceHandler::ComputeVoxelValue(
     double T2a = 1.0 / (1.0 / T2 + R2_ms * Gd);
 
     // Flip angle in radians
-    double alpha = alphaDeg * M_PI / 180.0;
+    double alpha = FMath::DegreesToRadians(alphaDeg);
 
     // Steady-state longitudinal magnetization for spoiled GRE
     double E1 = std::exp(-TR / T1a);
