@@ -91,7 +91,7 @@ void UMRITraceHandler::MRIScan(
                 int32 endXIndex = (backwardHit != nullptr) ? backwardHit->Location.X / xScale : countX;   // If no backward hit, go to the end of the slice
             
                 for (int32 xIndex = startXIndex; xIndex < endXIndex; ++xIndex) {
-                    int32 index = (countX * countY * zIndex) + (countY * yIndex) + xIndex;
+                    int32 index = (countX * countY * zIndex) + (countX * yIndex) + (xIndex - countX/2); // no idea why -countX/2 fixes index overflow issue
                     if (index < volume.Num()) {
                         if (forwardHit->GetComponent() != nullptr) {
                             UMaterialInterface *materialInterface = forwardHit->GetComponent()->GetMaterial(0);
