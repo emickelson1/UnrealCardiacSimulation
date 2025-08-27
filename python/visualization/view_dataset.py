@@ -5,13 +5,13 @@ import matplotlib.colors as mcolors
 from matplotlib.widgets import Slider, Button
 
 
-import loader
+import python.loading.simulated_nrrd_loader as simulated_nrrd_loader
 
 active_datasets = ["19x256"]
 split = [1.0, 0.0, 0.0]
 label_cmap = mcolors.ListedColormap(['black', 'red', 'orange', 'blue', 'yellow', 'green', 'pink', 'lime', 'purple'])
 
-(train_data, train_labels), (validation_data, validation_labels), (test_data, test_labels) = loader.load_data_as_tensors(active_datasets, split)
+(train_data, train_labels), (validation_data, validation_labels), (test_data, test_labels) = simulated_nrrd_loader.load_data_as_tensors(active_datasets, split)
 print(torch.equal(train_data[0][0], train_data[0][1]))
 
 # print(f"shape: {train_labels[0].shape}")

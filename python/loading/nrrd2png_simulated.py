@@ -2,18 +2,18 @@ import glob
 from pathlib import Path
 import numpy as np
 import os
-import loader
+import simulated_nrrd_loader
 from PIL import Image
 from tqdm import tqdm
 
 
-in_folder = f"{Path('./main.py').parent.absolute()}/data/unprocessed"
-out_folder = f"{Path('./main.py').parent.absolute()}/data/png"
+in_dir = f"{Path('./').parent.absolute()}/data/unprocessed"
+out_dir = f"{Path('./').parent.absolute()}/data/png"
 dataset = "19x256"
 
 def main():
-    print(f"Splitting nrrds (from '{in_folder}/{dataset}') into pngs (to '{out_folder}')")
-    vol_paths = glob.glob(f"{in_folder}/{dataset}/*_vol.nrrd")
+    print(f"Splitting nrrds (from '{in_dir}/{dataset}') into pngs (to '{out_dir}')")
+    vol_paths = glob.glob(f"{in_dir}/{dataset}/*_vol.nrrd")
 
     for i in tqdm(range(len(vol_paths))):
         vol_path = vol_paths[i]
@@ -21,10 +21,10 @@ def main():
 
         def save(nrrd_path: str, type: str):
             # Get name
-            name = nrrd_path.lstrip(in_folder).lstrip(f"/{dataset}/").rstrip(f"_{type}.nrrd")
+            name = nrrd_path.lstrip(in_dir).lstrip(f"/{dataset}/").rstrip(f"_{type}.nrrd")
 
             # Form array
-            arr = loader.load_file_as_np(nrrd_path)
+            arr = simulated_nrrd_loader.load_file_as_np(nrrd_path)
             arr = np.transpose(arr, [3, 2, 0, 1])   # frame, slice, x, y
             arr = arr[:, :, ::-1, :]                # fix flipped y
             
@@ -37,7 +37,7 @@ def main():
                     arr = ((arr - min_vals) * scale).astype(np.uint8)
 
             # Ensure out directory is valid
-            out_dir = os.path.join(out_folder, dataset, type)
+            out_dir = os.path.join(out_dir, dataset, type)
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir, exist_ok=True)
 

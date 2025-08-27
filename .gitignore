@@ -106,3 +106,4 @@ data/unprocessed/*
 blender/bioxel/*
 launch_ue5_insights.sh
 data/png/*
+data/downloaded/*
