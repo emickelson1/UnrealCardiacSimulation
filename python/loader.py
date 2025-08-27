@@ -11,6 +11,15 @@ class DatasetError(Exception):
     pass
 
 
+def load_file_as_np(filepath) -> np.ndarray:
+    if not os.path.exists(filepath):
+        print(f"Could not find file at address {filepath}")
+        return np.array()
+    
+    data, _ = nrrd.read(filepath)
+    return data
+
+
 def load_data_as_np(active_datasets) -> list[tuple]:
     # Raise exception if no datasets are provided.
     if len(active_datasets) == 0:

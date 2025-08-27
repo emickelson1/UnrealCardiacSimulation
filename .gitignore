@@ -105,3 +105,4 @@ data/unprocessed/*
 *.vdb
 blender/bioxel/*
 launch_ue5_insights.sh
+data/png/*
